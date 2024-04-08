@@ -13,6 +13,11 @@ const port = 3000;
 app.use(bodyParser.json());
 app.use(cors());
 
+
+// Increase payload size limit (e.g., 50MB)
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
 // Connect to MongoDB
 mongoose.connect('mongodb://localhost:27017/foodryp');
 const db = mongoose.connection;

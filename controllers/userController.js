@@ -2,11 +2,13 @@ const User = require('../models/user');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const multer = require('multer');
+const console = require('console');
+const fs = require('fs'); 
 
 // Configure multer to handle file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-      cb(null, 'profile_pictures');
+      cb(null, 'profilePictures');
   },
   filename: (req, file, cb) => {
       const ext = path.extname(file.originalname);
@@ -17,28 +19,6 @@ const storage = multer.diskStorage({
 
 
 const upload = multer({ storage: storage });
-
-// Profile picture upload endpoint function
-exports.uploadProfilePicture = upload.single('profilePicture'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    const userId = req.body.userId;
-    console.error('userId:', userId);
-    const userProfile = await User.findByIdAndUpdate(userId, { profilePicture: req.file.path }, { new: true });
-
-    if (!userProfile) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    res.status(200).json({ message: 'Profile picture uploaded successfully', profilePicture: req.file.path });
-  } catch (error) {
-    console.error('Error uploading profile picture:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
 
 exports.registerUser = async (req, res) => {
   try {
@@ -96,28 +76,33 @@ exports.getUserProfile = async (req, res) => {
 };
 
 
-exports.uploadProfilePicture = upload.single('profilePicture'), async (req, res) => {
+exports.uploadProfilePicture = async (req, res) => {
   try {
-    // Check if file is uploaded
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
+    
+    // Apply multer middleware for file upload
+    await upload.single('profilePicture')(req, res, async (err) => {
+      if (err) {
+        console.error('Error uploading profile picture:', err);
+        return res.status(400).json({ message: 'Error uploading file' });
+      }
 
-    // File uploaded successfully, save the file path to the user document
-    const userId = req.user._id; // Assuming you have authenticated the user and added user object to the request
-    const userProfile = await User.findById(userId);
-    if (!userProfile) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+      // Upload successful, handle the file (but not saving it to DB)
+      const userId = req.body.userId;
+      console.log('Received userId:', userId);
+      console.log('Request Body:', req.body);
+      console.log('req.file:', req.file);
 
-    // Save the file path to user document
-    userProfile.profilePicture = req.file.path;
-    await userProfile.save();
+      // You can use the `req.file` object here for further processing:
+      // - Access file information like filename, size, etc.
+      // - Use a stream to process the image data directly.
+      // - Save the file to a temporary location if needed (clean up later).
 
-    res.status(200).json({ message: 'Profile picture uploaded successfully', profilePicture: req.file.path });
+      res.status(200).json({ message: 'Profile picture uploaded successfully' });
+    });
   } catch (error) {
     console.error('Error uploading profile picture:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
