@@ -6,6 +6,9 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true }, // Ensure email uniqueness
   password: String,
   gender: String,
+  profileImage: String, // Add profile image field
+  memberSince: { type: Date, default: Date.now }, // Add memberSince field with default value as current date
+  role: { type: String, enum: ['admin', 'user'], default: 'user' }, // Add role field with default value 'user'
 });
 
 // Method to compare hashed password with plain text password
