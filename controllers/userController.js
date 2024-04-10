@@ -2,7 +2,6 @@ const User = require('../models/user');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const multer = require('multer');
-const console = require('console');
 const fs = require('fs');
 
 // Configure multer to handle file uploads
