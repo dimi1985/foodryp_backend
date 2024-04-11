@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-
+ 
 const recipeSchema = new mongoose.Schema({
   recipeTitle: {
     type: String,
@@ -10,17 +10,22 @@ const recipeSchema = new mongoose.Schema({
     type: String,
   },
   ingredients: {
-    type: [mongoose.Schema.Types.ObjectId],
-    ref: 'Ingredient', // Reference the Ingredient model
+    type: [],
     required: true,
   },
-  duration: {
-    type: Number,
-    min: 0, // Optional validation for minimum duration
+  instructions: {
+    type: [],
+    required: true,
+  },
+  prepDuration: {
+    type: String,
+  },
+  cookDuration: {
+    type: String,
   },
   difficulty: {
     type: String,
-    enum: ['Easy', 'Medium', 'Hard'], // Enforce difficulty options
+    
     required: true,
   },
   username: {
@@ -31,7 +36,7 @@ const recipeSchema = new mongoose.Schema({
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Reference the User model (optional)
+    ref: 'User', 
     required: true,
   },
   date: {
@@ -42,6 +47,16 @@ const recipeSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  categoryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    required: true,
+  },
+  categoryColor: {
+    type: String,
+    required: true,
+  },
+
 });
 
 module.exports = mongoose.model('Recipe', recipeSchema);

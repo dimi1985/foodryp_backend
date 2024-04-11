@@ -15,21 +15,30 @@ const storage = multer.diskStorage({
     }
 });
 
+
+
+
+
+
 const upload = multer({ storage: storage });
 
 // Method to save category with all fields and upload image (merged)
 exports.saveRecipe = async (req, res) => {
     try {
-        const { recipeTitle, ingredients, duration, difficulty,username , useImage, userId, date, description, recipeImage } = req.body;
+
+      console.log('Get saveRecipe  in Progress.....:');
+        const { recipeTitle, ingredients, prepDuration,cookDuration, difficulty,username , useImage, userId, date, description, recipeImage, instructions, categoryId, categoryColor} = req.body;
 
         const existingRecipe = await Recipe.findOne({ recipeTitle });
         if (existingRecipe) {
+          console.log('Recipe already exists');
             return res.status(400).json({ message: 'Recipe already exists' });
         }
 
 
 
-        const newRecipe = new Recipe({ recipeTitle, ingredients, duration, difficulty,username , useImage, userId, date, description, recipeImage });
+        const newRecipe = new Recipe({ recipeTitle, ingredients, prepDuration,cookDuration, difficulty,username , useImage, userId, date, description, recipeImage, instructions, categoryId, categoryColor});
+        console.log('Recipe got : ', newRecipe);
         await newRecipe.save();
         console.log('Recipe saved successfully',  newRecipe._id);
         res.status(201).json({ message: 'Recipe saved successfully', recipeId: newRecipe._id });
