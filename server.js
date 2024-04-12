@@ -3,7 +3,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const { registerUser, loginUser, uploadProfilePicture, getUserProfile, getAllUsers, updateUserRole } = require('./controllers/userController');
+const { registerUser, loginUser, uploadProfilePicture, getUserProfile, getAllUsers, updateUserRole,deleteUser } = require('./controllers/userController');
 const { saveCategory, uploadCategoryImage, getAllCategories } = require('./controllers/categoryController');
 const { saveRecipe, uploadRecipeImage, getAllRecipes } = require('./controllers/recipeController');
 const app = express();
@@ -40,7 +40,7 @@ app.get('/api/userProfile/:userId', getUserProfile);
 app.post('/api/uploadProfilePic', uploadProfilePicture); 
 app.get('/api/allUsers', getAllUsers); 
 app.put('/api/userRole/:userId', updateUserRole);
-app.put('/api/userRole/:userId', updateUserRole);
+app.delete('/api/deleteUser/:userId', deleteUser);
 
 app.post('/api/saveCategory/', saveCategory);
 app.post('/api/uploadCategoryImage', uploadCategoryImage); 

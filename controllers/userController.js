@@ -1,4 +1,6 @@
 const User = require('../models/user');
+const Recipe = require('../models/recipe');
+const Category = require('../models/category');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const multer = require('multer');
@@ -21,7 +23,7 @@ const upload = multer({ storage: storage });
 
 exports.registerUser = async (req, res) => {
   try {
-    const { username, email, password, gender, profileImage, memberSince, role } = req.body;
+    const { username, email, password, gender, profileImage, memberSince, role, recipes } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -30,7 +32,7 @@ exports.registerUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({ username, email, password: hashedPassword, gender, profileImage,memberSince: new Date(req.body.memberSince), role, });
+    const newUser = new User({ username, email, password: hashedPassword, gender, profileImage,memberSince: new Date(req.body.memberSince), role, recipes});
     await newUser.save();
 
     res.status(201).json({ message: 'User registered successfully', userId: newUser._id });
@@ -57,6 +59,7 @@ exports.loginUser = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 
 
@@ -144,20 +147,20 @@ exports.uploadProfilePicture = async (req, res) => {
 exports.getAllUsers = async (req, res) => {
   try {
 
-    console.log('Get All Users in Progress.....:');
+    
     // Retrieve all users from the database
     const users = await User.find({}).select('-password');
     console.log('Users Found: ', users);
     // Check if any users are found
     if (users.length === 0) {
-      console.log('No Users Found: ', users.length);
+    
       return res.status(404).json({ message: 'No users found' });
     }
 
     // Send users array as JSON response
     res.status(200).json(users);
   } catch (error) {
-    console.error('Error fetching all users:', error);
+ 
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -183,3 +186,48 @@ exports.updateUserRole = async (req, res) => {
   }
 };
 
+exports.deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const user = await User.findById(userId);
+   
+    
+    // 2. Delete the associated profile image (if exists)
+    if (user && user.profilePicture) {
+      try {
+        // Delete the old profile image file
+        fs.unlinkSync(user.profilePicture);
+      } catch (deleteError) {
+       
+        // Handle error deleting old profile image file
+      }
+    }
+
+    // 3. Delete the user's recipes and associated images
+    const recipesToDelete = await Recipe.find({ userId });
+    for (const recipe of recipesToDelete) {
+      // Delete the recipe image
+      if (recipe.recipeImage) {
+        try {
+          fs.unlinkSync(recipe.recipeImage);
+        } catch (deleteError) {
+          
+          // Handle error deleting recipe image
+        }
+      }
+    }
+    await Recipe.deleteMany({ userId });
+
+    // 4. Clear the recipe IDs from the categories
+    await Category.updateMany({}, { $pull: { recipes: { $in: user.recipes } } });
+
+    // 5. Delete the user document
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};

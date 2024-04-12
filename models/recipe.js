@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
- 
+
 const recipeSchema = new mongoose.Schema({
   recipeTitle: {
     type: String,
@@ -23,9 +23,14 @@ const recipeSchema = new mongoose.Schema({
   cookDuration: {
     type: String,
   },
+  servingNumber: {
+    type: String,
+
+    required: true,
+  },
   difficulty: {
     type: String,
-    
+
     required: true,
   },
   username: {
@@ -36,7 +41,7 @@ const recipeSchema = new mongoose.Schema({
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', 
+    ref: 'User',
     required: true,
   },
   date: {
@@ -56,7 +61,10 @@ const recipeSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-
+  categoryFont: {
+    type: String,
+    required: true,
+  },
 });
 
 module.exports = mongoose.model('Recipe', recipeSchema);

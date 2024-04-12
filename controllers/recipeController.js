@@ -1,4 +1,6 @@
 const Recipe = require('../models/recipe');
+const Category = require('../models/category');
+const User = require('../models/user');
 const multer = require('multer');
 const fs = require('path');
 const path = require('path');
@@ -24,30 +26,38 @@ const upload = multer({ storage: storage });
 
 // Method to save category with all fields and upload image (merged)
 exports.saveRecipe = async (req, res) => {
-    try {
+  try {
+      console.log('Get saveRecipe in Progress.....:');
+      const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage, userId, date, description, recipeImage, instructions, categoryId, categoryColor, categoryFont } = req.body;
 
-      console.log('Get saveRecipe  in Progress.....:');
-        const { recipeTitle, ingredients, prepDuration,cookDuration, difficulty,username , useImage, userId, date, description, recipeImage, instructions, categoryId, categoryColor} = req.body;
-
-        const existingRecipe = await Recipe.findOne({ recipeTitle });
-        if (existingRecipe) {
+      const existingRecipe = await Recipe.findOne({ recipeTitle });
+      if (existingRecipe) {
           console.log('Recipe already exists');
-            return res.status(400).json({ message: 'Recipe already exists' });
-        }
+          return res.status(400).json({ message: 'Recipe already exists' });
+      }
 
+      const newRecipe = new Recipe({ recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage, userId, date, description, recipeImage, instructions, categoryId, categoryColor, categoryFont });
+      console.log('Recipe got : ', newRecipe);
+      await newRecipe.save();
+      console.log('Recipe saved successfully', newRecipe._id);
+ 
+      // Update category recipes field
+      await Category.findByIdAndUpdate(categoryId, { $push: { recipes: newRecipe._id } });
+      console.log('Found categoryId:',categoryId);
+      console.log('Saved recipesId:',newRecipe._id);
 
+      // Update user recipes field
+      await User.findByIdAndUpdate(userId, { $push: { recipes: newRecipe._id } });
+      console.log('Found userId:',userId);
+      console.log('Saved recipesId:',newRecipe._id);
 
-        const newRecipe = new Recipe({ recipeTitle, ingredients, prepDuration,cookDuration, difficulty,username , useImage, userId, date, description, recipeImage, instructions, categoryId, categoryColor});
-        console.log('Recipe got : ', newRecipe);
-        await newRecipe.save();
-        console.log('Recipe saved successfully',  newRecipe._id);
-        res.status(201).json({ message: 'Recipe saved successfully', recipeId: newRecipe._id });
-
-    } catch (error) {
-
-        res.status(500).json({ message: 'Internal server error' });
-    }
+      res.status(201).json({ message: 'Recipe saved successfully', recipeId: newRecipe._id });
+  } catch (error) {
+      console.error('Error saving recipe:', error);
+      res.status(500).json({ message: 'Internal server error' });
+  }
 };
+
 
 
 exports.uploadRecipeImage = async (req, res) => {
@@ -105,7 +115,7 @@ exports.uploadRecipeImage = async (req, res) => {
     try {
       // Fetch all categories
       const recipes = await Recipe.find();
-  
+      console.log('Recipe found in Progress.....:');
       // Check if any categories found
       if (!recipes.length) {
         return res.status(204).json({ message: 'No recipes found' });

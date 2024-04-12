@@ -20,7 +20,7 @@ const upload = multer({ storage: storage });
 // Method to save category with all fields and upload image (merged)
 exports.saveCategory = async (req, res) => {
     try {
-        const { name, font, color, categoryImage } = req.body;
+        const { name, font, color, categoryImage,recipes } = req.body;
 
         const existingCategory = await Category.findOne({ name });
         if (existingCategory) {
@@ -29,7 +29,7 @@ exports.saveCategory = async (req, res) => {
 
 
 
-        const newCategory = new Category({ name, font, color, categoryImage });
+        const newCategory = new Category({ name, font, color, categoryImage,recipes });
         await newCategory.save();
         console.log('Category saved successfully',  newCategory._id);
         res.status(201).json({ message: 'Category saved successfully', categoryId: newCategory._id });

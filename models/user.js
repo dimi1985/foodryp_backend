@@ -2,13 +2,14 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
 const userSchema = new mongoose.Schema({
-  username: String,
-  email: { type: String, required: true, unique: true }, // Ensure email uniqueness
+  username: { type: String, required: true, unique: true }, 
+  email: { type: String, required: true, unique: true }, 
   password: String,
   gender: String,
   profileImage: String, // Add profile image field
-  memberSince: { type: Date, default: Date.now }, // Add memberSince field with default value as current date
-  role: { type: String, enum: ['admin', 'user'], default: 'user' }, // Add role field with default value 'user'
+  memberSince: { type: Date, default: Date.now }, 
+  role: String,
+  recipes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }] 
 });
 
 // Method to compare hashed password with plain text password
