@@ -23,7 +23,7 @@ const upload = multer({ storage: storage });
 
 exports.registerUser = async (req, res) => {
   try {
-    const { username, email, password, gender, profileImage, memberSince, role, recipes } = req.body;
+    const { username, email, password, gender, profileImage, memberSince, role, recipes,following,followedBy,likedRecipes } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -32,7 +32,7 @@ exports.registerUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({ username, email, password: hashedPassword, gender, profileImage,memberSince: new Date(req.body.memberSince), role, recipes});
+    const newUser = new User({ username, email, password: hashedPassword, gender, profileImage,memberSince: new Date(req.body.memberSince), role, recipes,following, followedBy,likedRecipes});
     await newUser.save();
 
     res.status(201).json({ message: 'User registered successfully', userId: newUser._id });
@@ -150,7 +150,7 @@ exports.getAllUsers = async (req, res) => {
     
     // Retrieve all users from the database
     const users = await User.find({}).select('-password');
-    console.log('Users Found: ', users);
+    
     // Check if any users are found
     if (users.length === 0) {
     
@@ -231,3 +231,102 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+exports.getFollowingUsers = async (req, res) => {
+  try {
+    
+    const userId = req.params.userId;
+   
+    // Find the user by ID and populate the followedUsers field (assuming it's an array of user IDs)
+    const user = await User.findById(userId).populate('following');
+    
+    // Extract the followed users from the user object
+    const following = user.following;
+    console.log('Sending Followers in format: ', following);
+    res.status(200).json(following);
+  } catch (error) {
+    console.error('Error fetching followed users:', error);
+    res.status(500).json({ error: 'Failed to load followed users' });
+  }
+}
+
+exports.followUser = async (req, res) => {
+  try {
+      const { userId, userToFollow } = req.body; // Destructure userId and userToFollow
+    
+      // Find the user to follow
+      let user = await User.findById(userId);
+
+      if (!user) {
+          return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Check if the current user is already following the user
+      const isFollowing = user.following.includes(userToFollow);
+
+      if (isFollowing) {
+          return res.status(400).json({ error: 'User is already followed' });
+      } else {
+          // If not following, add to following list
+          user.following.push(userToFollow);
+
+          // Update the followed user's followedBy list
+          const followedUser = await User.findById(userToFollow);
+          followedUser.followedBy.push(userId);
+
+          // Save changes to both users
+          await user.save();
+          await followedUser.save();
+
+          res.status(200).json({ message: 'User followed successfully' });
+      }
+  } catch (error) {
+      console.error('Error following user:', error);
+      res.status(500).json({ error: 'Failed to follow user' });
+  }
+}
+
+exports.unfollowUser = async (req, res) => {
+  try {
+    const { userId, userToUnfollow } = req.body;
+  
+    // Find the user to unfollow
+    let user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if the current user is following the user
+    const followingIndex = user.following.indexOf(userToUnfollow);
+    if (followingIndex === -1) {
+      return res.status(400).json({ error: 'User is not followed' });
+    } else {
+      // If following, remove from following list
+      user.following.splice(followingIndex, 1);
+
+      // Update the followed user's followedBy list
+      let followedUser = await User.findById(userToUnfollow);
+      if (!followedUser) {
+        return res.status(404).json({ error: 'Followed user not found' });
+      }
+
+      const followedByIndex = followedUser.followedBy.indexOf(userId);
+      if (followedByIndex !== -1) {
+        followedUser.followedBy.splice(followedByIndex, 1);
+      }
+
+      // Save changes to both users
+      await user.save();
+      await followedUser.save();
+
+      res.status(200).json({ message: 'User unfollowed successfully' });
+    }
+  } catch (error) {
+    console.error('Error unfollowing user:', error);
+    res.status(500).json({ error: 'Failed to unfollow user' });
+  }
+}
+
+
+
+

@@ -3,9 +3,11 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const { registerUser, loginUser, uploadProfilePicture, getUserProfile, getAllUsers, updateUserRole,deleteUser } = require('./controllers/userController');
+const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
+   getAllUsers, updateUserRole,deleteUser,getFollowingUsers,
+    followUser,unfollowUser} = require('./controllers/userController');
 const { saveCategory, uploadCategoryImage, getAllCategories } = require('./controllers/categoryController');
-const { saveRecipe, uploadRecipeImage, getAllRecipes } = require('./controllers/recipeController');
+const { saveRecipe, uploadRecipeImage, getAllRecipes,getUserRecipes,likeRecipe,dislikeRecipe  } = require('./controllers/recipeController');
 const app = express();
 const port = 3000;
 
@@ -41,6 +43,9 @@ app.post('/api/uploadProfilePic', uploadProfilePicture);
 app.get('/api/allUsers', getAllUsers); 
 app.put('/api/userRole/:userId', updateUserRole);
 app.delete('/api/deleteUser/:userId', deleteUser);
+app.get('/api/getFollowingUsers/:userId', getFollowingUsers);
+app.post('/api/followUser', followUser);
+app.post('/api/unfollowUser', unfollowUser);  
 
 app.post('/api/saveCategory/', saveCategory);
 app.post('/api/uploadCategoryImage', uploadCategoryImage); 
@@ -51,6 +56,9 @@ app.get('/api/categories/', getAllCategories);
 app.post('/api/saveRecipe/', saveRecipe);
 app.post('/api/uploadRecipeImage', uploadRecipeImage); 
 app.get('/api/recipes/', getAllRecipes);
+app.get('/api/getUserRecipes/', getUserRecipes);
+app.post('/api/recipe/likeRecipe', likeRecipe);
+app.post('/api/recipe/dislikeRecipe', dislikeRecipe);
 
 
 // Start the server

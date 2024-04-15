@@ -27,29 +27,30 @@ const upload = multer({ storage: storage });
 // Method to save category with all fields and upload image (merged)
 exports.saveRecipe = async (req, res) => {
   try {
-      console.log('Get saveRecipe in Progress.....:');
-      const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage, userId, date, description, recipeImage, instructions, categoryId, categoryColor, categoryFont } = req.body;
+    
+      const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage, 
+        userId, date, description, recipeImage, instructions, 
+        categoryId, categoryColor, categoryFont,categoryName,likedBy } = req.body;
 
       const existingRecipe = await Recipe.findOne({ recipeTitle });
       if (existingRecipe) {
-          console.log('Recipe already exists');
+         
           return res.status(400).json({ message: 'Recipe already exists' });
       }
 
-      const newRecipe = new Recipe({ recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage, userId, date, description, recipeImage, instructions, categoryId, categoryColor, categoryFont });
-      console.log('Recipe got : ', newRecipe);
+      const newRecipe = new Recipe({ recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty,
+         username, useImage, userId, date, description, recipeImage,
+          instructions, categoryId, categoryColor, categoryFont,categoryName, likedBy });
+      
       await newRecipe.save();
-      console.log('Recipe saved successfully', newRecipe._id);
+     
  
       // Update category recipes field
       await Category.findByIdAndUpdate(categoryId, { $push: { recipes: newRecipe._id } });
-      console.log('Found categoryId:',categoryId);
-      console.log('Saved recipesId:',newRecipe._id);
-
+     
       // Update user recipes field
       await User.findByIdAndUpdate(userId, { $push: { recipes: newRecipe._id } });
-      console.log('Found userId:',userId);
-      console.log('Saved recipesId:',newRecipe._id);
+      
 
       res.status(201).json({ message: 'Recipe saved successfully', recipeId: newRecipe._id });
   } catch (error) {
@@ -115,20 +116,69 @@ exports.uploadRecipeImage = async (req, res) => {
     try {
       // Fetch all categories
       const recipes = await Recipe.find();
-      console.log('Recipe found in Progress.....:');
+      console.log('GgetAllRecipes Found: ', recipes);
       // Check if any categories found
       if (!recipes.length) {
         return res.status(204).json({ message: 'No recipes found' });
       }
-  
-      // Return fetched categories
-      console.log(recipes);
       res.status(200).json(recipes);
     } catch (error) {
       console.error('Error fetching recipes:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   };
+
+  exports.getUserRecipes = async (req, res) => {
+    try {
+      const userId = req.params.userId; 
+      console.log('getUserRecipes got userId: ', userId);
+      // Find the user by userId
+      const user = await User.findById(userId).populate('recipes');
+  
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+  
+      // Extract the recipes from the user object
+      const recipes = user.recipes;
+      console.log('getUserRecipes Found: ', recipes);
+      res.status(200).json({ recipes: recipes });
+    } catch (error) {
+      console.error('Error fetching user recipes:', error);
+      res.status(500).json({ error: 'Failed to fetch user recipes' });
+    }
+  };
+
+  exports.likeRecipe = async (req, res) => {
+    try {
+      const { recipeId } = req.body;
+      const { userId } = req.body;
+      console.log('likeRecipe in progress with: ', userId, recipeId);
+      await User.findByIdAndUpdate(userId, { $push: { likedRecipes: recipeId } });
+      await Recipe.findByIdAndUpdate(recipeId, { $push: { likedBy: userId } });
+  
+      res.status(200).json({ message: 'Recipe liked successfully' });
+    } catch (error) {
+      console.error('Error liking recipe:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  };
+  
+  exports.dislikeRecipe = async (req, res) => {
+    try {
+      const { recipeId } = req.body;
+      const { userId } = req.body;
+      console.log('dislikeRecipe in progress with: ', userId, recipeId);
+      await User.findByIdAndUpdate(userId, { $pull: { likedRecipes: recipeId } });
+      await Recipe.findByIdAndUpdate(recipeId, { $pull: { likedBy: userId } });
+  
+      res.status(200).json({ message: 'Recipe disliked successfully' });
+    } catch (error) {
+      console.error('Error disliking recipe:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  };
+  
 
 
   
