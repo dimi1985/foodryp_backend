@@ -112,6 +112,43 @@ exports.uploadRecipeImage = async (req, res) => {
     }
   };
 
+  exports.updateRecipe = async (req, res) => {
+    try {
+
+      const recipeId = req.params.recipeId;
+
+
+      const {recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage, 
+        userId, date, description, recipeImage, instructions, 
+        categoryId, categoryColor, categoryFont, categoryName, likedBy } = req.body;
+  
+        console.log('recipeId: ', recipeId);
+        console.log('Request body: ', req.body);
+        
+      // Update the recipe fields
+      const updateFields = {
+        recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage, 
+        userId, date, description, recipeImage, instructions, 
+        categoryId, categoryColor, categoryFont, categoryName, likedBy
+      };
+
+      console.log('Recied Request to update the recipe ');
+  
+      // Check if the recipe exists and update it
+      const result = await Recipe.updateOne({ _id: recipeId }, { $set: updateFields });
+      console.log('result Request :', result);
+  
+      if (result.nModified === 0) {
+        return res.status(404).json({ message: 'Recipe not found' });
+      }
+  
+      res.status(200).json({ message: 'Recipe updated successfully' });
+    } catch (error) {
+      console.error('Error updating recipe:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  };
+
   exports.getAllRecipes = async (req, res) => {
     try {
       // Fetch all categories

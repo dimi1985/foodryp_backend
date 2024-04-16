@@ -7,7 +7,7 @@ const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
    getAllUsers, updateUserRole,deleteUser,getFollowingUsers,
     followUser,unfollowUser} = require('./controllers/userController');
 const { saveCategory, uploadCategoryImage, getAllCategories } = require('./controllers/categoryController');
-const { saveRecipe, uploadRecipeImage, getAllRecipes,getUserRecipes,likeRecipe,dislikeRecipe  } = require('./controllers/recipeController');
+const { saveRecipe, uploadRecipeImage, getAllRecipes,getUserRecipes,likeRecipe,dislikeRecipe, updateRecipe } = require('./controllers/recipeController');
 const app = express();
 const port = 3000;
 
@@ -59,6 +59,7 @@ app.get('/api/recipes/', getAllRecipes);
 app.get('/api/getUserRecipes/', getUserRecipes);
 app.post('/api/recipe/likeRecipe', likeRecipe);
 app.post('/api/recipe/dislikeRecipe', dislikeRecipe);
+app.put('/api/updateRecipe/:recipeId', updateRecipe);
 
 
 // Start the server

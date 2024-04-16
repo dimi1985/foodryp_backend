@@ -31,7 +31,7 @@ exports.saveCategory = async (req, res) => {
 
         const newCategory = new Category({ name, font, color, categoryImage,recipes });
         await newCategory.save();
-        console.log('Category saved successfully',  newCategory._id);
+       
         res.status(201).json({ message: 'Category saved successfully', categoryId: newCategory._id });
 
     } catch (error) {
@@ -78,10 +78,10 @@ exports.uploadCategoryImage = async (req, res) => {
           }
         }
   
-        // Update the user document with the new profile picture URL
+        // Update the user document with the new Image
         await Category.updateOne(
-          { _id: categoryId }, // Filter criteria: find user by ID
-          { $set: { categoryImage: req.file.path } } // Update: set the new profile picture URL
+          { _id: categoryId }, // Filter criteria: find category  by ID
+          { $set: { categoryImage: req.file.path } } // Update: set the new image
         );
   
         res.status(200).json({ message: 'Category Image uploaded successfully' });
@@ -102,8 +102,8 @@ exports.uploadCategoryImage = async (req, res) => {
         return res.status(204).json({ message: 'No categories found' });
       }
   
-      // Return fetched categories
-      console.log(categories);
+      
+      
       res.status(200).json(categories);
     } catch (error) {
       console.error('Error fetching categories:', error);
