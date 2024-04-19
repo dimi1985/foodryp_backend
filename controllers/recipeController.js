@@ -2,7 +2,8 @@ const Recipe = require('../models/recipe');
 const Category = require('../models/category');
 const User = require('../models/user');
 const multer = require('multer');
-const fs = require('path');
+
+const fs = require('fs');
 const path = require('path');
 
 // Configure multer to handle category image uploads
@@ -80,6 +81,7 @@ exports.uploadRecipeImage = async (req, res) => {
   
         // Find recipe by ID
         let recipe = await Recipe.findById(recipeId);
+        console.log('recipeId uploadRecipeImage',recipeId);
   
         // If user doesn't exist, return error
         if (!recipe) {
@@ -91,7 +93,7 @@ exports.uploadRecipeImage = async (req, res) => {
         if (recipe.recipeImage) {
           // Delete the old image file (if it exists)
           try {
-            fs.unlinkSync(recipe.categoryImage);
+            fs.unlinkSync(recipe.recipeImage);
           } catch (deleteError) {
             console.error('Error deleting old image file:', deleteError);
             // Handle error deleting old image file
@@ -122,8 +124,6 @@ exports.uploadRecipeImage = async (req, res) => {
         userId, date, description, recipeImage, instructions, 
         categoryId, categoryColor, categoryFont, categoryName, likedBy } = req.body;
   
-        console.log('recipeId: ', recipeId);
-        console.log('Request body: ', req.body);
         
       // Update the recipe fields
       const updateFields = {
@@ -133,7 +133,7 @@ exports.uploadRecipeImage = async (req, res) => {
       };
 
       console.log('Recied Request to update the recipe ');
-  
+      console.log('recipeId ', recipeId);
       // Check if the recipe exists and update it
       const result = await Recipe.updateOne({ _id: recipeId }, { $set: updateFields });
       console.log('result Request :', result);
@@ -153,7 +153,7 @@ exports.uploadRecipeImage = async (req, res) => {
     try {
       // Fetch all categories
       const recipes = await Recipe.find();
-      console.log('GgetAllRecipes Found: ', recipes);
+      
       // Check if any categories found
       if (!recipes.length) {
         return res.status(204).json({ message: 'No recipes found' });
@@ -168,7 +168,7 @@ exports.uploadRecipeImage = async (req, res) => {
   exports.getUserRecipes = async (req, res) => {
     try {
       const userId = req.params.userId; 
-      console.log('getUserRecipes got userId: ', userId);
+    
       // Find the user by userId
       const user = await User.findById(userId).populate('recipes');
   
@@ -178,8 +178,8 @@ exports.uploadRecipeImage = async (req, res) => {
   
       // Extract the recipes from the user object
       const recipes = user.recipes;
-      console.log('getUserRecipes Found: ', recipes);
-      res.status(200).json({ recipes: recipes });
+     
+      res.status(200).json(recipes);
     } catch (error) {
       console.error('Error fetching user recipes:', error);
       res.status(500).json({ error: 'Failed to fetch user recipes' });
@@ -190,7 +190,7 @@ exports.uploadRecipeImage = async (req, res) => {
     try {
       const { recipeId } = req.body;
       const { userId } = req.body;
-      console.log('likeRecipe in progress with: ', userId, recipeId);
+      
       await User.findByIdAndUpdate(userId, { $push: { likedRecipes: recipeId } });
       await Recipe.findByIdAndUpdate(recipeId, { $push: { likedBy: userId } });
   
@@ -205,7 +205,7 @@ exports.uploadRecipeImage = async (req, res) => {
     try {
       const { recipeId } = req.body;
       const { userId } = req.body;
-      console.log('dislikeRecipe in progress with: ', userId, recipeId);
+    
       await User.findByIdAndUpdate(userId, { $pull: { likedRecipes: recipeId } });
       await Recipe.findByIdAndUpdate(recipeId, { $pull: { likedBy: userId } });
   
@@ -216,7 +216,78 @@ exports.uploadRecipeImage = async (req, res) => {
     }
   };
   
+  exports.deleteRecipe = async (req, res) => {
+    console.log('Received Delete')
+    try {
+        const { recipeId } = req.params;
+        const { userId } = req.body;
 
+        // Find the recipe to get the image path
+        const recipe = await Recipe.findById(recipeId);
+    
+        if (!recipe) {
+            return res.status(404).json({ message: 'Recipe not found' });
+        }
+    
+        // Remove recipe ID from users' likedRecipes array
+        await User.updateMany({ likedRecipes: recipeId }, { $pull: { likedRecipes: recipeId } });
+    
+        // Remove recipe ID from user's recipes array
+        await User.findByIdAndUpdate(userId, { $pull: { recipes: recipeId } });
+    
+        // Remove recipe ID from the category
+        await Category.updateMany({ recipes: recipeId }, { $pull: { recipes: recipeId } });
+    
+        // Delete the recipe image file
+        if (recipe.recipeImage) {
+            fs.unlinkSync(recipe.recipeImage);
+        }
+    
+        // Delete the recipe document
+        await Recipe.findByIdAndDelete(recipeId);
+    
+        res.status(200).json({ message: 'Recipe deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting recipe:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
 
+exports.getUserPublicRecipes = async (req, res) => {
+  try {
+    // Find the user by username
+    const { username } = req.params;
+    console.log('username: ', username);
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Find recipes belonging to the user
+    const recipes = await Recipe.find({ userId: user._id });
+    console.log('recipes: ', recipes);
+    res.status(200).json(recipes);
+  } catch (error) {
+    console.error('Error fetching user recipes:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
   
+exports.getRecipesByCategory = async (req, res) => {
+  try {
+    const { categoryName } = req.params;
+    console.log('categoryName: ', categoryName);
+
+    // Find recipes by category name
+    const recipes = await Recipe.find({ categoryName: categoryName });
+    console.log('recipes: ', recipes);
+
+    res.status(200).json(recipes);
+  } catch (error) {
+    console.error('Error fetching recipes by category:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
   

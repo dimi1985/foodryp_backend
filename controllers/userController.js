@@ -23,7 +23,7 @@ const upload = multer({ storage: storage });
 
 exports.registerUser = async (req, res) => {
   try {
-    const { username, email, password, gender, profileImage, memberSince, role, recipes,following,followedBy,likedRecipes } = req.body;
+    const { username, email, password, gender, profileImage, memberSince, role, recipes, following, followedBy, likedRecipes } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -32,7 +32,7 @@ exports.registerUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({ username, email, password: hashedPassword, gender, profileImage,memberSince: new Date(req.body.memberSince), role, recipes,following, followedBy,likedRecipes});
+    const newUser = new User({ username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(req.body.memberSince), role, recipes, following, followedBy, likedRecipes });
     await newUser.save();
 
     res.status(201).json({ message: 'User registered successfully', userId: newUser._id });
@@ -134,6 +134,13 @@ exports.uploadProfilePicture = async (req, res) => {
         { $set: { profileImage: req.file.path } } // Update: set the new profile picture URL
       );
 
+       // Update the recipe documents with the new profile picture URL
+await Recipe.updateMany(
+  { userId: userId }, // Filter criteria: find recipes by userId
+  { $set: { useImage: req.file.path } } // Update: set the new profile picture URL
+);
+
+
       res.status(200).json({ message: 'Profile picture uploaded successfully' });
     });
   } catch (error) {
@@ -147,20 +154,20 @@ exports.uploadProfilePicture = async (req, res) => {
 exports.getAllUsers = async (req, res) => {
   try {
 
-    
+
     // Retrieve all users from the database
     const users = await User.find({}).select('-password');
-    
+
     // Check if any users are found
     if (users.length === 0) {
-    
+
       return res.status(404).json({ message: 'No users found' });
     }
 
     // Send users array as JSON response
     res.status(200).json(users);
   } catch (error) {
- 
+
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -191,15 +198,15 @@ exports.deleteUser = async (req, res) => {
     const userId = req.params.userId;
 
     const user = await User.findById(userId);
-   
-    
+
+
     // 2. Delete the associated profile image (if exists)
     if (user && user.profilePicture) {
       try {
         // Delete the old profile image file
         fs.unlinkSync(user.profilePicture);
       } catch (deleteError) {
-       
+
         // Handle error deleting old profile image file
       }
     }
@@ -212,7 +219,7 @@ exports.deleteUser = async (req, res) => {
         try {
           fs.unlinkSync(recipe.recipeImage);
         } catch (deleteError) {
-          
+
           // Handle error deleting recipe image
         }
       }
@@ -234,15 +241,15 @@ exports.deleteUser = async (req, res) => {
 
 exports.getFollowingUsers = async (req, res) => {
   try {
-    
+
     const userId = req.params.userId;
-   
+
     // Find the user by ID and populate the followedUsers field (assuming it's an array of user IDs)
     const user = await User.findById(userId).populate('following');
-    
+
     // Extract the followed users from the user object
     const following = user.following;
-    console.log('Sending Followers in format: ', following);
+   
     res.status(200).json(following);
   } catch (error) {
     console.error('Error fetching followed users:', error);
@@ -252,44 +259,44 @@ exports.getFollowingUsers = async (req, res) => {
 
 exports.followUser = async (req, res) => {
   try {
-      const { userId, userToFollow } = req.body; // Destructure userId and userToFollow
-    
-      // Find the user to follow
-      let user = await User.findById(userId);
+    const { userId, userToFollow } = req.body; // Destructure userId and userToFollow
 
-      if (!user) {
-          return res.status(404).json({ error: 'User not found' });
-      }
+    // Find the user to follow
+    let user = await User.findById(userId);
 
-      // Check if the current user is already following the user
-      const isFollowing = user.following.includes(userToFollow);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-      if (isFollowing) {
-          return res.status(400).json({ error: 'User is already followed' });
-      } else {
-          // If not following, add to following list
-          user.following.push(userToFollow);
+    // Check if the current user is already following the user
+    const isFollowing = user.following.includes(userToFollow);
 
-          // Update the followed user's followedBy list
-          const followedUser = await User.findById(userToFollow);
-          followedUser.followedBy.push(userId);
+    if (isFollowing) {
+      return res.status(400).json({ error: 'User is already followed' });
+    } else {
+      // If not following, add to following list
+      user.following.push(userToFollow);
 
-          // Save changes to both users
-          await user.save();
-          await followedUser.save();
+      // Update the followed user's followedBy list
+      const followedUser = await User.findById(userToFollow);
+      followedUser.followedBy.push(userId);
 
-          res.status(200).json({ message: 'User followed successfully' });
-      }
+      // Save changes to both users
+      await user.save();
+      await followedUser.save();
+
+      res.status(200).json({ message: 'User followed successfully' });
+    }
   } catch (error) {
-      console.error('Error following user:', error);
-      res.status(500).json({ error: 'Failed to follow user' });
+    console.error('Error following user:', error);
+    res.status(500).json({ error: 'Failed to follow user' });
   }
 }
 
 exports.unfollowUser = async (req, res) => {
   try {
     const { userId, userToUnfollow } = req.body;
-  
+
     // Find the user to unfollow
     let user = await User.findById(userId);
     if (!user) {
@@ -325,8 +332,64 @@ exports.unfollowUser = async (req, res) => {
     console.error('Error unfollowing user:', error);
     res.status(500).json({ error: 'Failed to unfollow user' });
   }
-}
+};
 
 
+exports.changeCredentials = async (req, res) => {
+  const userId = req.params.userId;
 
+  const { oldPassword, newUsername, newEmail, newPassword } = req.body;
 
+  try {
+    // Fetch the user from the database
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Compare the provided old password with the stored hashed password
+    if (oldPassword) {
+      const passwordMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!passwordMatch) {
+        return res.status(400).json({ error: 'Incorrect password' });
+      }
+    }
+
+    // Update user credentials based on provided fields
+    if (newUsername) user.username = newUsername;
+    if (newEmail) user.email = newEmail;
+    if (newPassword) {
+      // Hash the new password before storing it
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedPassword;
+    }
+
+    // Save the updated user
+    await user.save();
+
+    res.status(200).json({ message: 'Credentials updated successfully' });
+  } catch (error) {
+    console.error('Error changing credentials:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+exports.getPublicUserProfile = async (req, res) => {
+  try {
+    const { username } = req.params;
+  
+    // Find the user by username
+    const user = await User.findOne({ username });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Return the user profile
+   
+    res.status(200).json(user);
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};

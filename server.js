@@ -5,9 +5,9 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
    getAllUsers, updateUserRole,deleteUser,getFollowingUsers,
-    followUser,unfollowUser} = require('./controllers/userController');
+    followUser,unfollowUser,changeCredentials,getPublicUserProfile} = require('./controllers/userController');
 const { saveCategory, uploadCategoryImage, getAllCategories } = require('./controllers/categoryController');
-const { saveRecipe, uploadRecipeImage, getAllRecipes,getUserRecipes,likeRecipe,dislikeRecipe, updateRecipe } = require('./controllers/recipeController');
+const { saveRecipe, uploadRecipeImage, getAllRecipes,getUserRecipes,likeRecipe,dislikeRecipe, updateRecipe,deleteRecipe,getUserPublicRecipes,getRecipesByCategory } = require('./controllers/recipeController');
 const app = express();
 const port = 3000;
 
@@ -46,6 +46,9 @@ app.delete('/api/deleteUser/:userId', deleteUser);
 app.get('/api/getFollowingUsers/:userId', getFollowingUsers);
 app.post('/api/followUser', followUser);
 app.post('/api/unfollowUser', unfollowUser);  
+app.put('/api/changeCredentials/:userId', changeCredentials);
+app.get('/api/getPublicUserProfile/:username', getPublicUserProfile);
+
 
 app.post('/api/saveCategory/', saveCategory);
 app.post('/api/uploadCategoryImage', uploadCategoryImage); 
@@ -56,11 +59,13 @@ app.get('/api/categories/', getAllCategories);
 app.post('/api/saveRecipe/', saveRecipe);
 app.post('/api/uploadRecipeImage', uploadRecipeImage); 
 app.get('/api/recipes/', getAllRecipes);
-app.get('/api/getUserRecipes/', getUserRecipes);
+app.get('/api/getUserRecipes/:userId', getUserRecipes);
 app.post('/api/recipe/likeRecipe', likeRecipe);
 app.post('/api/recipe/dislikeRecipe', dislikeRecipe);
 app.put('/api/updateRecipe/:recipeId', updateRecipe);
-
+app.delete('/api/deleteRecipe/:recipeId', deleteRecipe);
+app.get('/api/getUserPublicRecipes/:username', getUserPublicRecipes);
+app.get('/api/getRecipesByCategory/:categoryName', getRecipesByCategory); 
 
 // Start the server
 app.listen(port, () => {
