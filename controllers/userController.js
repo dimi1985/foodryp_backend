@@ -172,6 +172,34 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
+exports.getUsersByPage = async (req, res) => {
+  try {
+    // Parse query parameters for pagination
+    const page = parseInt(req.query.page) || 1; // Default to page 1 if not provided
+    const pageSize = parseInt(req.query.pageSize) || 10; // Default page size to 10 if not provided
+
+    // Calculate skip value to paginate users
+    const skip = (page - 1) * pageSize;
+
+    // Retrieve users from the database with pagination
+    const users = await User.find({})
+      .select('-password') // Exclude password field
+      .skip(skip)
+      .limit(pageSize);
+
+    // Check if any users are found
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'No users found' });
+    }
+
+    // Send users array as JSON response
+    res.status(200).json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 
 exports.updateUserRole = async (req, res) => {
   try {

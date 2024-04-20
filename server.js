@@ -5,9 +5,13 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
    getAllUsers, updateUserRole,deleteUser,getFollowingUsers,
-    followUser,unfollowUser,changeCredentials,getPublicUserProfile} = require('./controllers/userController');
-const { saveCategory, uploadCategoryImage, getAllCategories } = require('./controllers/categoryController');
-const { saveRecipe, uploadRecipeImage, getAllRecipes,getUserRecipes,likeRecipe,dislikeRecipe, updateRecipe,deleteRecipe,getUserPublicRecipes,getRecipesByCategory } = require('./controllers/recipeController');
+    followUser,unfollowUser,changeCredentials,getPublicUserProfile,getUsersByPage} = require('./controllers/userController');
+const { saveCategory, uploadCategoryImage, getAllCategories,getFixedCategories,getCategoriesByPage } = require('./controllers/categoryController');
+const { saveRecipe, uploadRecipeImage, getAllRecipes,
+  likeRecipe,dislikeRecipe, updateRecipe,deleteRecipe,
+  getUserPublicRecipesByPage,getRecipesByCategory,getFixedRecipes,getAllRecipesByPage ,getUserRecipesByPage} = require('./controllers/recipeController');
+
+  const {saveWeeklyMenu,getWeeklyMenusByPage} = require('./controllers/mealController');
 const app = express();
 const port = 3000;
 
@@ -36,11 +40,12 @@ db.once('open', () => {
   console.log('Connected to MongoDB');
 });
 
+app.get('/api/allUsers', getAllUsers);
+app.get('/api/getUsersByPage', getUsersByPage); 
 app.post('/api/register', registerUser);
 app.post('/api/login', loginUser);
 app.get('/api/userProfile/:userId', getUserProfile);
 app.post('/api/uploadProfilePic', uploadProfilePicture); 
-app.get('/api/allUsers', getAllUsers); 
 app.put('/api/userRole/:userId', updateUserRole);
 app.delete('/api/deleteUser/:userId', deleteUser);
 app.get('/api/getFollowingUsers/:userId', getFollowingUsers);
@@ -53,19 +58,27 @@ app.get('/api/getPublicUserProfile/:username', getPublicUserProfile);
 app.post('/api/saveCategory/', saveCategory);
 app.post('/api/uploadCategoryImage', uploadCategoryImage); 
 app.get('/api/categories/', getAllCategories);
+app.get('/api/categories/getFixedCategories', getFixedCategories);
+app.get('/api/getCategoriesByPage/', getCategoriesByPage);
 
 
 
 app.post('/api/saveRecipe/', saveRecipe);
 app.post('/api/uploadRecipeImage', uploadRecipeImage); 
 app.get('/api/recipes/', getAllRecipes);
-app.get('/api/getUserRecipes/:userId', getUserRecipes);
 app.post('/api/recipe/likeRecipe', likeRecipe);
 app.post('/api/recipe/dislikeRecipe', dislikeRecipe);
 app.put('/api/updateRecipe/:recipeId', updateRecipe);
 app.delete('/api/deleteRecipe/:recipeId', deleteRecipe);
-app.get('/api/getUserPublicRecipes/:username', getUserPublicRecipes);
 app.get('/api/getRecipesByCategory/:categoryName', getRecipesByCategory); 
+app.get('/api/recipes/getFixedRecipes', getFixedRecipes);
+app.get('/api/getAllRecipesByPage', getAllRecipesByPage);
+app.get('/api/getUserRecipesByPage/:userId', getUserRecipesByPage);
+app.get('/api/getUserPublicRecipes/:username', getUserPublicRecipesByPage);
+
+
+app.post('/api/saveWeeklyMenu', saveWeeklyMenu);
+app.get('/api/getWeeklyMenusByPage/', getWeeklyMenusByPage);
 
 // Start the server
 app.listen(port, () => {
