@@ -73,6 +73,7 @@ const recipeSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   }],
+  meal: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Meal' }],
 });
 
 module.exports = mongoose.model('Recipe', recipeSchema);

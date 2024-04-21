@@ -23,7 +23,7 @@ const upload = multer({ storage: storage });
 
 exports.registerUser = async (req, res) => {
   try {
-    const { username, email, password, gender, profileImage, memberSince, role, recipes, following, followedBy, likedRecipes } = req.body;
+    const { username, email, password, gender, profileImage, memberSince, role, recipes, following, followedBy, likedRecipes,mealId } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -32,7 +32,7 @@ exports.registerUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({ username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(req.body.memberSince), role, recipes, following, followedBy, likedRecipes });
+    const newUser = new User({ username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(req.body.memberSince), role, recipes, following, followedBy, likedRecipes,mealId });
     await newUser.save();
 
     res.status(201).json({ message: 'User registered successfully', userId: newUser._id });

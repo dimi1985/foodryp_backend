@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Recipe',
   }],
-
+  mealId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Meal' }],
 });
 
 // Method to compare hashed password with plain text password

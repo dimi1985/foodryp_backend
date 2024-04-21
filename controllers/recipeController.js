@@ -31,7 +31,7 @@ exports.saveRecipe = async (req, res) => {
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, date, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, likedBy } = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, likedBy,meal } = req.body;
 
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
@@ -42,7 +42,7 @@ exports.saveRecipe = async (req, res) => {
     const newRecipe = new Recipe({
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty,
       username, useImage, userId, date, description, recipeImage,
-      instructions, categoryId, categoryColor, categoryFont, categoryName, likedBy
+      instructions, categoryId, categoryColor, categoryFont, categoryName, likedBy,meal
     });
 
     await newRecipe.save();
@@ -124,14 +124,14 @@ exports.updateRecipe = async (req, res) => {
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, date, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, likedBy } = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, likedBy,meal } = req.body;
 
 
     // Update the recipe fields
     const updateFields = {
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, date, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, likedBy
+      categoryId, categoryColor, categoryFont, categoryName, likedBy,meal
     };
 
    
