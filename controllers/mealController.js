@@ -123,3 +123,50 @@ exports.getWeeklyMenusByPageAndUser = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
+
+exports.updateWeeklyMenu = async (req, res) => {
+    try {
+        const { menuId, title, dayOfWeek, userId, username, userProfileImage } = req.body;
+
+        // Find the meal by ID
+        const meal = await Meal.findById(menuId);
+        if (!meal) {
+            return res.status(404).json({ message: 'Meal not found' });
+        }
+
+        // Update the meal with the new data
+        meal.title = title;
+        meal.dayOfWeek = dayOfWeek;
+        meal.username = username;
+        meal.userProfileImage = userProfileImage;
+
+        // Save the updated meal
+        const updatedMeal = await meal.save();
+
+        // Iterate over each dayOfWeek
+        for (const dayRecipeId of dayOfWeek) {
+            // Find the recipe for the current dayOfWeek
+            const recipe = await Recipe.findById(dayRecipeId);
+            if (!recipe) {
+                console.error(`Recipe with ID ${dayRecipeId} not found`);
+                continue; // Skip to the next iteration if recipe is not found
+            }
+
+            // Update the recipe with the meal ID
+            recipe.meal = updatedMeal._id;
+
+            // Save the updated recipe
+            await recipe.save();
+        }
+
+        // Update the meal ID in the user's mealId field
+        await User.findByIdAndUpdate(userId, { mealId: updatedMeal._id });
+
+        // Respond with the updated meal data
+        res.status(200).json(updatedMeal);
+    } catch (error) {
+        console.error('Error updating weekly menu:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
