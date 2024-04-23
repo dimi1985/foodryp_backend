@@ -11,7 +11,7 @@ const { saveRecipe, uploadRecipeImage, getAllRecipes,
   likeRecipe,dislikeRecipe, updateRecipe,deleteRecipe,
   getUserPublicRecipesByPage,getRecipesByCategory,getFixedRecipes,getAllRecipesByPage ,getUserRecipesByPage} = require('./controllers/recipeController');
 
-  const {saveWeeklyMenu,getWeeklyMenusByPage,getWeeklyMenusByPageAndUser} = require('./controllers/mealController');
+  const {saveWeeklyMenu,getWeeklyMenusByPage,getWeeklyMenusByPageAndUser,getWeeklyMenusFixedLength} = require('./controllers/mealController');
 const app = express();
 const port = 3000;
 
@@ -80,6 +80,7 @@ app.get('/api/getUserPublicRecipes/:username', getUserPublicRecipesByPage);
 app.post('/api/saveWeeklyMenu', saveWeeklyMenu);
 app.get('/api/getWeeklyMenusByPage/', getWeeklyMenusByPage);
 app.get('/api/getWeeklyMenusByPageAndUser', getWeeklyMenusByPageAndUser);
+app.get('/api/getWeeklyMenusFixedLength', getWeeklyMenusFixedLength);
 
 // Start the server
 app.listen(port, () => {

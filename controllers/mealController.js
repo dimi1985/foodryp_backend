@@ -75,6 +75,32 @@ exports.getWeeklyMenusByPage = async (req, res) => {
     }
 };
 
+exports.getWeeklyMenusFixedLength = async (req, res) => {
+    try {
+        const { length } = req.query;
+    
+        // Convert length to an integer
+        const desiredLength = parseInt(length);
+    
+        // Query for weekly menus with the desired length and populate the dayOfWeek field with recipes
+        const weeklyMenus = await Meal.find()
+            .limit(desiredLength)
+            .populate({
+                path: 'dayOfWeek',
+                model: 'Recipe' 
+            })
+            .exec();
+    
+        // Respond with the list of weekly menus
+        res.status(200).json(weeklyMenus);
+    } catch (error) {
+        console.error('Error fetching fixed-length weekly menus:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+    
+};
+
+
 exports.getWeeklyMenusByPageAndUser = async (req, res) => {
     try {
         const { page = 1, pageSize = 10, userId } = req.query;
