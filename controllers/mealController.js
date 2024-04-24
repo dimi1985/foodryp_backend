@@ -10,14 +10,10 @@ exports.saveWeeklyMenu = async (req, res) => {
         // Create a new meal object
         const meal = new Meal({
             title,
-            dayOfWeek,
             userId,
             username,
             userProfileImage,
         });
-
-        // Save the meal to the database
-        const savedMeal = await meal.save();
 
         // Iterate over each dayOfWeek
         for (const dayRecipeId of dayOfWeek) {
@@ -28,12 +24,18 @@ exports.saveWeeklyMenu = async (req, res) => {
                 continue; // Skip to the next iteration if recipe is not found
             }
 
-            // Update the recipe with the meal ID
-            recipe.meal = savedMeal._id;
+            // Add the recipe ID to the dayOfWeek array of the meal
+            meal.dayOfWeek.push(dayRecipeId);
+
+           // Update the recipe with the meal ID
+            recipe.meal.push(meal._id);
 
             // Save the updated recipe
             await recipe.save();
         }
+
+        // Save the meal to the database
+        const savedMeal = await meal.save();
 
         // Save the meal ID to the user's mealId field
         await User.findByIdAndUpdate(userId, { mealId: savedMeal._id });
@@ -127,34 +129,58 @@ exports.getWeeklyMenusByPageAndUser = async (req, res) => {
 
 exports.updateWeeklyMenu = async (req, res) => {
     try {
-        const { menuId, title, dayOfWeek, userId, username, userProfileImage } = req.body;
+        const { mealId, title, oldRecipes, newRecipes, userId, username, userProfileImage } = req.body;
 
+        console.log('meal fields:', mealId, title, oldRecipes, newRecipes, userId, username, userProfileImage);
         // Find the meal by ID
-        const meal = await Meal.findById(menuId);
+        const meal = await Meal.findById(mealId);
+        console.log('meal found:', meal);
         if (!meal) {
             return res.status(404).json({ message: 'Meal not found' });
         }
 
+        // Update dayOfWeek with newRecipes
+        meal.dayOfWeek = newRecipes;
+
         // Update the meal with the new data
         meal.title = title;
-        meal.dayOfWeek = dayOfWeek;
         meal.username = username;
         meal.userProfileImage = userProfileImage;
 
         // Save the updated meal
         const updatedMeal = await meal.save();
 
-        // Iterate over each dayOfWeek
-        for (const dayRecipeId of dayOfWeek) {
-            // Find the recipe for the current dayOfWeek
-            const recipe = await Recipe.findById(dayRecipeId);
+        // Iterate over each new recipe ID
+        for (const newRecipeId of newRecipes) {
+            // Find the recipe for the current new recipe ID
+            const recipe = await Recipe.findById(newRecipeId);
             if (!recipe) {
-                console.error(`Recipe with ID ${dayRecipeId} not found`);
+                console.error(`Recipe with ID ${newRecipeId} not found`);
                 continue; // Skip to the next iteration if recipe is not found
             }
 
             // Update the recipe with the meal ID
-            recipe.meal = updatedMeal._id;
+            if (!recipe.meal.includes(updatedMeal._id)) {
+                recipe.meal.push(updatedMeal._id);
+            }
+
+            // Save the updated recipe
+            await recipe.save();
+
+            console.log('recipe save:', recipe);
+        }
+
+        // Iterate over each old recipe ID and remove the meal ID from the recipe
+        for (const oldRecipeId of oldRecipes) {
+            // Find the recipe for the current old recipe ID
+            const recipe = await Recipe.findById(oldRecipeId);
+            if (!recipe) {
+                console.error(`Recipe with ID ${oldRecipeId} not found`);
+                continue; // Skip to the next iteration if recipe is not found
+            }
+
+            // Remove the meal ID from the recipe
+            recipe.meal = recipe.meal.filter(mealId => mealId.toString() !== updatedMeal._id.toString());
 
             // Save the updated recipe
             await recipe.save();

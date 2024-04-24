@@ -83,7 +83,7 @@ exports.uploadRecipeImage = async (req, res) => {
 
       // Find recipe by ID
       let recipe = await Recipe.findById(recipeId);
-      console.log('recipeId uploadRecipeImage', recipeId);
+   
 
       // If user doesn't exist, return error
       if (!recipe) {
@@ -258,7 +258,7 @@ exports.getUserRecipesByPage = async (req, res) => {
   try {
     const { userId } = req.params;
     const { page = 1, pageSize = 10 } = req.query; // Default page = 1, pageSize = 10
-    console.log(userId);
+
 
     // Calculate skip count based on pagination parameters
     const skipCount = (page - 1) * pageSize;
@@ -334,7 +334,7 @@ exports.getAllRecipesByPage = async (req, res) => {
       .skip(skipCount)
       .limit(parseInt(pageSize));
 
-    console.log('recipes:', recipes);
+
 
     res.status(200).json(recipes);
   } catch (error) {

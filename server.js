@@ -81,7 +81,7 @@ app.post('/api/saveWeeklyMenu', saveWeeklyMenu);
 app.get('/api/getWeeklyMenusByPage/', getWeeklyMenusByPage);
 app.get('/api/getWeeklyMenusByPageAndUser', getWeeklyMenusByPageAndUser);
 app.get('/api/getWeeklyMenusFixedLength', getWeeklyMenusFixedLength);
-app.put('/api/updateWeeklyMenu/:menuId', updateWeeklyMenu);
+app.put('/api/updateWeeklyMenu', updateWeeklyMenu);
 
 // Start the server
 app.listen(port, () => {
