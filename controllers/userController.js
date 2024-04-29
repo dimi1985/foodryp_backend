@@ -421,3 +421,69 @@ exports.getPublicUserProfile = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+exports.addFridgeItem = async (req, res) => {
+  try {
+
+    const { userId,name,category } = req.body;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    const newItem = { name,category };
+    user.fridgeItems.push(newItem);
+    await user.save();
+
+    res.status(200).json(user.fridgeItems);
+  } catch (error) {
+    console.error('Error adding fridge item:', error);
+    res.status(500).json({ success: false, message: "Internal server error", error: error.message });
+  }
+};
+
+exports.getFridgeItems = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const user = await User.findById(userId).populate('fridgeItems');
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Assuming fridge items are stored directly under the user document
+    res.status(200).json({
+      success: true,
+      fridgeItems: user.fridgeItems
+    });
+  } catch (error) {
+    console.error('Error fetching fridge items:', error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+exports.deleteFridgeItem = async (req, res) => {
+  try {
+    const { userId, itemName } = req.query; // Assuming you are sending userId and itemName as query parameters
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Filter out the item to delete
+    const updatedFridgeItems = user.fridgeItems.filter(item => item.name !== itemName);
+
+    // Update the user's fridgeItems
+    user.fridgeItems = updatedFridgeItems;
+    await user.save();
+
+    res.status(200).json({ message: "Fridge item deleted successfully.", fridgeItems: user.fridgeItems });
+  } catch (error) {
+    console.error('Error deleting fridge item:', error);
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+

@@ -33,6 +33,11 @@ exports.saveRecipe = async (req, res) => {
       userId, date, description, recipeImage, instructions,
       categoryId, categoryColor, categoryFont, categoryName, likedBy,meal } = req.body;
 
+
+      console.log(recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
+        userId, date, description, recipeImage, instructions,
+        categoryId, categoryColor, categoryFont, categoryName, likedBy,meal);
+
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
 
@@ -66,52 +71,43 @@ exports.saveRecipe = async (req, res) => {
 
 exports.uploadRecipeImage = async (req, res) => {
   try {
-    // Apply multer middleware for file upload
-    await upload.single('recipeImage')(req, res, async (err) => {
+    // Handling file upload
+    const fileUpload = upload.single('recipeImage');
+    fileUpload(req, res, async (err) => {
       if (err) {
-        console.error('Error uploading recipe  picture:', err);
+        console.error('Error uploading recipe picture:', err);
         return res.status(400).json({ message: 'Error uploading file' });
       }
 
-      // Check if file upload was successful
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
       }
 
-      // Extract recipe ID from request body
       const recipeId = req.body.recipeId;
+      const recipe = await Recipe.findById(recipeId);
 
-      // Find recipe by ID
-      let recipe = await Recipe.findById(recipeId);
-   
-
-      // If user doesn't exist, return error
       if (!recipe) {
-        return res.status(404).json({ message: 'recipe not found' });
+        console.log('recipe not found');
+        return res.status(404).json({ message: 'Recipe not found' });
       }
 
-      // Check recipe picture
-      // If yes, delete the old image file
-      if (recipe.recipeImage) {
-        // Delete the old image file (if it exists)
-        try {
-          fs.unlinkSync(recipe.recipeImage);
-        } catch (deleteError) {
-          console.error('Error deleting old image file:', deleteError);
-          // Handle error deleting old image file
-        }
-      }
+      // Deleting the old image if it exists
+      // if (recipe.recipeImage) {
+      //   try {
+      //     fs.unlinkSync(recipe.recipeImage);
+      //   } catch (deleteError) {
+      //     console.error('Error deleting old image file:', deleteError);
+      //   }
+      // }
 
-      // Update the user document with the new profile picture URL
-      await Recipe.updateOne(
-        { _id: recipeId }, // Filter criteria: find user by ID
-        { $set: { recipeImage: req.file.path } } // Update: set the new profile picture URL
-      );
+      // Updating the recipe with the new image
+      recipe.recipeImage = req.file.path;
+      await recipe.save();
 
-      res.status(200).json({ message: 'Recipe Image uploaded successfully' });
+      res.status(200).json({ message: 'Recipe Image uploaded successfully', recipeImage: req.file.path });
     });
   } catch (error) {
-    console.error('Error uploading recipe Image:', error);
+    console.error('Error handling the recipe image upload:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -221,6 +217,7 @@ exports.deleteRecipe = async (req, res) => {
   try {
     const { recipeId } = req.params;
     const { userId } = req.body;
+
 
     // Find the recipe to get the image path
     const recipe = await Recipe.findById(recipeId);

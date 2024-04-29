@@ -5,7 +5,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
    getAllUsers, updateUserRole,deleteUser,getFollowingUsers,
-    followUser,unfollowUser,changeCredentials,getPublicUserProfile,getUsersByPage} = require('./controllers/userController');
+    followUser,unfollowUser,changeCredentials,getPublicUserProfile,getUsersByPage, addFridgeItem,getFridgeItems,deleteFridgeItem} = require('./controllers/userController');
 const { saveCategory, uploadCategoryImage, getAllCategories,getFixedCategories,getCategoriesByPage } = require('./controllers/categoryController');
 const { saveRecipe, uploadRecipeImage, getAllRecipes,
   likeRecipe,dislikeRecipe, updateRecipe,deleteRecipe,
@@ -53,6 +53,9 @@ app.post('/api/followUser', followUser);
 app.post('/api/unfollowUser', unfollowUser);  
 app.put('/api/changeCredentials/:userId', changeCredentials);
 app.get('/api/getPublicUserProfile/:username', getPublicUserProfile);
+app.post('/api/addFridgeItem', addFridgeItem);  
+app.get('/api/getFridgeItems/:userId', getFridgeItems);
+app.delete('/api/deleteFridgeItem/', deleteFridgeItem);
 
 
 app.post('/api/saveCategory/', saveCategory);
