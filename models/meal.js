@@ -6,6 +6,10 @@ const mealSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   username: { type: String, required: true },
   userProfileImage: String,
+  dateCreated: {
+    type: Date,
+    default: Date.now, 
+  },
 });
 
 module.exports = mongoose.model('Meal', mealSchema);

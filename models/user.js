@@ -23,6 +23,7 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Recipe',
   }],
+  followedByRequest: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   mealId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Meal' }],
   fridgeItems: [fridgeItemSchema], // Embed fridge items array
 });

@@ -5,7 +5,7 @@ const User = require('../models/user');
 // Function to save a new weekly menu
 exports.saveWeeklyMenu = async (req, res) => {
     try {
-        const { title, dayOfWeek, userId, username, userProfileImage } = req.body;
+        const { title, dayOfWeek, userId, username, userProfileImage,dateCreated } = req.body;
 
         // Create a new meal object
         const meal = new Meal({
@@ -13,6 +13,7 @@ exports.saveWeeklyMenu = async (req, res) => {
             userId,
             username,
             userProfileImage,
+            dateCreated,
         });
 
         // Iterate over each dayOfWeek
@@ -129,9 +130,9 @@ exports.getWeeklyMenusByPageAndUser = async (req, res) => {
 
 exports.updateWeeklyMenu = async (req, res) => {
     try {
-        const { mealId, title, oldRecipes, newRecipes, userId, username, userProfileImage } = req.body;
+        const { mealId, title, oldRecipes, newRecipes, userId, username, userProfileImage,dateCreated } = req.body;
 
-        console.log('meal fields:', mealId, title, oldRecipes, newRecipes, userId, username, userProfileImage);
+      
         // Find the meal by ID
         const meal = await Meal.findById(mealId);
         console.log('meal found:', meal);
@@ -146,6 +147,7 @@ exports.updateWeeklyMenu = async (req, res) => {
         meal.title = title;
         meal.username = username;
         meal.userProfileImage = userProfileImage;
+        meal.dateCreated = dateCreated;
 
         // Save the updated meal
         const updatedMeal = await meal.save();

@@ -30,13 +30,11 @@ exports.saveRecipe = async (req, res) => {
   try {
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
-      userId, date, description, recipeImage, instructions,
+      userId, dateCreated, description, recipeImage, instructions,
       categoryId, categoryColor, categoryFont, categoryName, likedBy,meal } = req.body;
 
 
-      console.log(recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
-        userId, date, description, recipeImage, instructions,
-        categoryId, categoryColor, categoryFont, categoryName, likedBy,meal);
+   
 
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
@@ -46,7 +44,7 @@ exports.saveRecipe = async (req, res) => {
 
     const newRecipe = new Recipe({
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty,
-      username, useImage, userId, date, description, recipeImage,
+      username, useImage, userId, dateCreated, description, recipeImage,
       instructions, categoryId, categoryColor, categoryFont, categoryName, likedBy,meal
     });
 
@@ -87,7 +85,7 @@ exports.uploadRecipeImage = async (req, res) => {
       const recipe = await Recipe.findById(recipeId);
 
       if (!recipe) {
-        console.log('recipe not found');
+  
         return res.status(404).json({ message: 'Recipe not found' });
       }
 
@@ -119,14 +117,14 @@ exports.updateRecipe = async (req, res) => {
 
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
-      userId, date, description, recipeImage, instructions,
+      userId, dateCreated, description, recipeImage, instructions,
       categoryId, categoryColor, categoryFont, categoryName, likedBy,meal } = req.body;
 
 
     // Update the recipe fields
     const updateFields = {
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
-      userId, date, description, recipeImage, instructions,
+      userId, dateCreated, description, recipeImage, instructions,
       categoryId, categoryColor, categoryFont, categoryName, likedBy,meal
     };
 
@@ -170,7 +168,7 @@ exports.getFixedRecipes = async (req, res) => {
     if (!recipes.length) {
       return res.status(204).json({ message: 'No recipes found' });
     }
-
+    console.log(recipes);
     res.status(200).json(recipes);
   } catch (error) {
     console.error('Error fetching recipes:', error);
@@ -320,8 +318,7 @@ exports.getRecipesByCategory = async (req, res) => {
 
 exports.getAllRecipesByPage = async (req, res) => {
   try {
-
-    const { page = 1, pageSize = 10 } = req.query; // Default page = 1, pageSize = 10
+    const { page = 1, pageSize = 10 } = req.query; 
 
     // Calculate skip count based on pagination parameters
     const skipCount = (page - 1) * pageSize;
@@ -330,12 +327,70 @@ exports.getAllRecipesByPage = async (req, res) => {
     const recipes = await Recipe.find()
       .skip(skipCount)
       .limit(parseInt(pageSize));
-
-
-
+      console.log(`Fetched ${recipes.length} recipes for page ${page}`);
+    // If there are no recipes, return an empty array instead of throwing an error
+    if (recipes.length === 0) {
+     
+      console.log('recipes sent:',recipes);
+      return res.status(200).json([]);
+    }
+    console.log('recipes sent:',recipes);
     res.status(200).json(recipes);
   } catch (error) {
     console.error('Error fetching recipes by page:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+
+
+
+
+exports.searchRecipesByName = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 1) || 1;  // Correct radix to 10
+    const pageSize = parseInt(req.query.pageSize, 10) || 10;  // Ensure pageSize is parsed correctly
+    const query = req.query.query || '';
+
+    const regex = new RegExp(query, 'i');
+    const options = {
+      skip: (page - 1) * pageSize,  // Correctly calculate skip
+      limit: pageSize  // Ensure limit is set from the query parameters or default
+    };
+
+    console.log('Executing search with:', {
+      query,
+      regex: regex.toString(),
+      options
+    });
+
+    const recipes = await Recipe.find({ recipeTitle: { $regex: regex } }, null, options);
+    const total = await Recipe.countDocuments({ recipeTitle: { $regex: regex } });
+
+    console.log('Search results:', {
+      recipes,
+      total
+    });
+
+    res.json({
+      success: true,
+      query,
+      regex: regex.toString(),
+      options,
+      recipes,
+      total
+    });
+  } catch (error) {
+    console.error('Search recipes error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching recipes',
+      error
+    });
+  }
+};
+
+
+
+
+

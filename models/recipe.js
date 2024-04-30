@@ -44,7 +44,7 @@ const recipeSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
-  date: {
+  dateCreated: {
     type: Date,
     default: Date.now, // Set default date to current time
   },
@@ -75,5 +75,9 @@ const recipeSchema = new mongoose.Schema({
   }],
   meal: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Meal' }],
 });
+
+
+// Create a text index on title and description
+recipeSchema.index({ title: 'text', description: 'text' });
 
 module.exports = mongoose.model('Recipe', recipeSchema);

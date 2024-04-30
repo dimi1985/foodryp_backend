@@ -23,7 +23,7 @@ const upload = multer({ storage: storage });
 
 exports.registerUser = async (req, res) => {
   try {
-    const { username, email, password, gender, profileImage, memberSince, role, recipes, following, followedBy, likedRecipes,mealId } = req.body;
+    const { username, email, password, gender, profileImage, memberSince, role, recipes, following, followedBy, likedRecipes,mealId,followedByRequest } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -32,7 +32,7 @@ exports.registerUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({ username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(req.body.memberSince), role, recipes, following, followedBy, likedRecipes,mealId });
+    const newUser = new User({ username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(req.body.memberSince), role, recipes, following, followedBy, likedRecipes,mealId,followedByRequest });
     await newUser.save();
 
     res.status(201).json({ message: 'User registered successfully', userId: newUser._id });
@@ -287,7 +287,7 @@ exports.getFollowingUsers = async (req, res) => {
 
 exports.followUser = async (req, res) => {
   try {
-    const { userId, userToFollow } = req.body; // Destructure userId and userToFollow
+    const { userId, userToFollow, followedByRequest } = req.body; // Destructure userId, userToFollow, and followedByRequest
 
     // Find the user to follow
     let user = await User.findById(userId);
@@ -309,6 +309,9 @@ exports.followUser = async (req, res) => {
       const followedUser = await User.findById(userToFollow);
       followedUser.followedBy.push(userId);
 
+      // Update the followed user's followedByRequest list
+      followedUser.followedByRequest.push(userId);
+
       // Save changes to both users
       await user.save();
       await followedUser.save();
@@ -320,6 +323,7 @@ exports.followUser = async (req, res) => {
     res.status(500).json({ error: 'Failed to follow user' });
   }
 }
+
 
 exports.unfollowUser = async (req, res) => {
   try {
@@ -350,6 +354,12 @@ exports.unfollowUser = async (req, res) => {
         followedUser.followedBy.splice(followedByIndex, 1);
       }
 
+      // Remove the userId from followedByRequest
+      const followedByRequestIndex = followedUser.followedByRequest.indexOf(userId);
+      if (followedByRequestIndex !== -1) {
+        followedUser.followedByRequest.splice(followedByRequestIndex, 1);
+      }
+
       // Save changes to both users
       await user.save();
       await followedUser.save();
@@ -361,6 +371,84 @@ exports.unfollowUser = async (req, res) => {
     res.status(500).json({ error: 'Failed to unfollow user' });
   }
 };
+
+exports.searchUsersByFollowedByRequest = async (req, res) => {
+  try {
+    const { userId, userIds } = req.body;
+
+    // Find the current user by their ID
+    const currentUser = await User.findById(userId);
+    if (!currentUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Initialize an empty array to store users found by followedByRequest
+    let usersFound = [];
+
+    // Iterate over the array of user IDs
+    for (const id of userIds) {
+      // Find the user by their ID
+      const user = await User.findById(id);
+      if (user) {
+        // Add the user to the list if found
+        usersFound.push(user);
+      }
+    }
+
+    res.status(200).json(usersFound);
+  } catch (error) {
+    console.error('Error searching users by followedByRequest:', error);
+    res.status(500).json({ error: 'Failed to search users by followedByRequest' });
+  }
+};
+
+
+exports.followBack = async (req, res) => {
+  try {
+    const { userId, userToFollowBack } = req.body;
+
+    // Find the user to follow back
+    let user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Find the user to follow
+    let followedUser = await User.findById(userToFollowBack);
+    if (!followedUser) {
+      return res.status(404).json({ error: 'User to follow back not found' });
+    }
+
+    // Check if the current user is already followed by the user to follow back
+    const isFollowed = followedUser.followedBy.includes(userId);
+    if (isFollowed) {
+      return res.status(400).json({ error: 'User is already followed by the user to follow back' });
+    }
+
+    // Follow back: add userId to followedBy of followedUser and remove userId from followedByRequest of user
+    followedUser.followedBy.push(userId);
+    
+    const followedByRequestIndex = user.followedByRequest.indexOf(userToFollowBack);
+    if (followedByRequestIndex !== -1) {
+      user.followedByRequest.splice(followedByRequestIndex, 1);
+    }
+
+    // Push userId of followedBy into the users following field
+    user.following.push(userToFollowBack);
+
+    // Save changes to both users
+    await user.save();
+    await followedUser.save();
+
+    res.status(200).json({ message: 'Followed back successfully' });
+  } catch (error) {
+    console.error('Error following back:', error);
+    res.status(500).json({ error: 'Failed to follow back' });
+  }
+};
+
+
+
 
 
 exports.changeCredentials = async (req, res) => {
@@ -462,6 +550,35 @@ exports.getFridgeItems = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+exports.updateFridgeItem = async (req, res) => {
+  const { userId, oldItemName, newItem } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const itemIndex = user.fridgeItems.findIndex(item => item.name === oldItemName);
+    if (itemIndex === -1) {
+      return res.status(404).json({ message: "Item not found" });
+    }
+
+    // Update the item
+    user.fridgeItems[itemIndex].name = newItem.name;
+    user.fridgeItems[itemIndex].category = newItem.category;
+
+    await user.save();
+    res.json({ success: true, message: 'Fridge item updated successfully', fridgeItems: user.fridgeItems });
+  } catch (error) {
+    console.error('Failed to update fridge item:', error);
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+
+
+
 
 exports.deleteFridgeItem = async (req, res) => {
   try {

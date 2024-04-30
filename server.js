@@ -4,12 +4,13 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
-   getAllUsers, updateUserRole,deleteUser,getFollowingUsers,
-    followUser,unfollowUser,changeCredentials,getPublicUserProfile,getUsersByPage, addFridgeItem,getFridgeItems,deleteFridgeItem} = require('./controllers/userController');
-const { saveCategory, uploadCategoryImage, getAllCategories,getFixedCategories,getCategoriesByPage } = require('./controllers/categoryController');
+   getAllUsers, updateUserRole,deleteUser,getFollowingUsers,searchUsersByFollowedByRequest,
+    followUser,unfollowUser,followBack,changeCredentials,getPublicUserProfile,getUsersByPage, addFridgeItem,getFridgeItems,updateFridgeItem ,deleteFridgeItem} = require('./controllers/userController');
+const { saveCategory, uploadCategoryImage, getAllCategories,getFixedCategories,getCategoriesByPage,updateCategory,deleteCategory } = require('./controllers/categoryController');
 const { saveRecipe, uploadRecipeImage, getAllRecipes,
   likeRecipe,dislikeRecipe, updateRecipe,deleteRecipe,
-  getUserPublicRecipesByPage,getRecipesByCategory,getFixedRecipes,getAllRecipesByPage ,getUserRecipesByPage} = require('./controllers/recipeController');
+  getUserPublicRecipesByPage,getRecipesByCategory
+  ,getFixedRecipes,getAllRecipesByPage ,getUserRecipesByPage,searchRecipesByName} = require('./controllers/recipeController');
 
   const {saveWeeklyMenu,getWeeklyMenusByPage,getWeeklyMenusByPageAndUser,getWeeklyMenusFixedLength,updateWeeklyMenu} = require('./controllers/mealController');
 const app = express();
@@ -33,12 +34,15 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 // Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/foodryp');
+mongoose.connect('mongodb://localhost:27017/foodryp')
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch((err) => {
+    console.error('MongoDB connection error:', err);
+  });
+
 const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'MongoDB connection error:'));
-db.once('open', () => {
-  console.log('Connected to MongoDB');
-});
 
 app.get('/api/allUsers', getAllUsers);
 app.get('/api/getUsersByPage', getUsersByPage); 
@@ -50,19 +54,23 @@ app.put('/api/userRole/:userId', updateUserRole);
 app.delete('/api/deleteUser/:userId', deleteUser);
 app.get('/api/getFollowingUsers/:userId', getFollowingUsers);
 app.post('/api/followUser', followUser);
-app.post('/api/unfollowUser', unfollowUser);  
+app.post('/api/unfollowUser', unfollowUser);
+app.post('/api/searchUsersByFollowedByRequest', searchUsersByFollowedByRequest);
+app.post('/api/followBack', followBack);    
 app.put('/api/changeCredentials/:userId', changeCredentials);
 app.get('/api/getPublicUserProfile/:username', getPublicUserProfile);
 app.post('/api/addFridgeItem', addFridgeItem);  
 app.get('/api/getFridgeItems/:userId', getFridgeItems);
 app.delete('/api/deleteFridgeItem/', deleteFridgeItem);
+app.put('/api/updateFridgeItem/', updateFridgeItem);
 
 
 app.post('/api/saveCategory/', saveCategory);
-app.post('/api/uploadCategoryImage', uploadCategoryImage); 
+app.post('/api/updateCategory/:categoryId', updateCategory);
 app.get('/api/categories/', getAllCategories);
 app.get('/api/categories/getFixedCategories', getFixedCategories);
 app.get('/api/getCategoriesByPage/', getCategoriesByPage);
+app.delete('/api/deleteCategory/:categoryId', deleteCategory);
 
 
 
@@ -78,6 +86,7 @@ app.get('/api/recipes/getFixedRecipes', getFixedRecipes);
 app.get('/api/getAllRecipesByPage', getAllRecipesByPage);
 app.get('/api/getUserRecipesByPage/:userId', getUserRecipesByPage);
 app.get('/api/getUserPublicRecipes/:username', getUserPublicRecipesByPage);
+app.get('/api/searchRecipesByName', searchRecipesByName);
 
 
 app.post('/api/saveWeeklyMenu', saveWeeklyMenu);
