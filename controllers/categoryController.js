@@ -96,9 +96,7 @@ exports.deleteCategory = async (req, res) => {
           recipe.categoryColor = defaultCategory.color;
           recipe.categoryFont = defaultCategory.font;
           recipe.categoryName = defaultCategory.name;
-          console.log('categoryColor', recipe.categoryColor)
-          console.log('categoryFont', recipe.categoryFont)
-          console.log('categoryColor', recipe.categoryName)
+         
           await recipe.save();
           // Push recipe ID into the default category's recipes array
           defaultCategory.recipes.push(recipe._id);

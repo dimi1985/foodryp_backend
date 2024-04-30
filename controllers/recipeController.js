@@ -31,10 +31,10 @@ exports.saveRecipe = async (req, res) => {
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, likedBy,meal } = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal } = req.body;
 
 
-   
+
 
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
@@ -45,7 +45,7 @@ exports.saveRecipe = async (req, res) => {
     const newRecipe = new Recipe({
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty,
       username, useImage, userId, dateCreated, description, recipeImage,
-      instructions, categoryId, categoryColor, categoryFont, categoryName, likedBy,meal
+      instructions, categoryId, categoryColor, categoryFont, categoryName, likedBy, meal
     });
 
     await newRecipe.save();
@@ -85,7 +85,7 @@ exports.uploadRecipeImage = async (req, res) => {
       const recipe = await Recipe.findById(recipeId);
 
       if (!recipe) {
-  
+
         return res.status(404).json({ message: 'Recipe not found' });
       }
 
@@ -118,20 +118,32 @@ exports.updateRecipe = async (req, res) => {
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, likedBy,meal } = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal } = req.body;
 
 
     // Update the recipe fields
     const updateFields = {
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, likedBy,meal
+      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal
     };
 
-   
+
     // Check if the recipe exists and update it
     const result = await Recipe.updateOne({ _id: recipeId }, { $set: updateFields });
-    
+
+
+    // Update category recipes field
+    await Category.findByIdAndUpdate(categoryId, { $push: { recipes: recipeId } });
+
+    // Find the default category document
+    const defaultCategory = await Category.findOne({ name: 'Uncategorized' });
+
+    // Pull recipe ID from the default category's recipes array
+    await Category.updateOne(
+      { _id: defaultCategory._id },
+      { $pull: { recipes: recipeId } }
+    );
 
     if (result.nModified === 0) {
       return res.status(404).json({ message: 'Recipe not found' });
@@ -168,7 +180,7 @@ exports.getFixedRecipes = async (req, res) => {
     if (!recipes.length) {
       return res.status(204).json({ message: 'No recipes found' });
     }
-    console.log(recipes);
+
     res.status(200).json(recipes);
   } catch (error) {
     console.error('Error fetching recipes:', error);
@@ -262,7 +274,7 @@ exports.getUserRecipesByPage = async (req, res) => {
     const recipes = await Recipe.find({ userId: userId })
       .skip(skipCount)
       .limit(parseInt(pageSize));
-     
+
     res.status(200).json(recipes);
   } catch (error) {
     console.error('Error fetching user recipes:', error);
@@ -284,7 +296,7 @@ exports.getUserPublicRecipesByPage = async (req, res) => {
     const recipes = await Recipe.find({ username: username })
       .skip(skipCount)
       .limit(parseInt(pageSize));
-    
+
     res.status(200).json(recipes);
   } catch (error) {
     console.error('Error fetching public user recipes:', error);
@@ -295,7 +307,7 @@ exports.getUserPublicRecipesByPage = async (req, res) => {
 exports.getRecipesByCategory = async (req, res) => {
   try {
 
-    
+
     const { categoryName } = req.params;
     const { page = 1, pageSize = 10 } = req.query; // Default page = 1, pageSize = 10
 
@@ -307,7 +319,7 @@ exports.getRecipesByCategory = async (req, res) => {
       .skip(skipCount)
       .limit(parseInt(pageSize));
 
-   
+
 
     res.status(200).json(recipes);
   } catch (error) {
@@ -318,7 +330,7 @@ exports.getRecipesByCategory = async (req, res) => {
 
 exports.getAllRecipesByPage = async (req, res) => {
   try {
-    const { page = 1, pageSize = 10 } = req.query; 
+    const { page = 1, pageSize = 10 } = req.query;
 
     // Calculate skip count based on pagination parameters
     const skipCount = (page - 1) * pageSize;
@@ -327,14 +339,14 @@ exports.getAllRecipesByPage = async (req, res) => {
     const recipes = await Recipe.find()
       .skip(skipCount)
       .limit(parseInt(pageSize));
-      console.log(`Fetched ${recipes.length} recipes for page ${page}`);
+
     // If there are no recipes, return an empty array instead of throwing an error
     if (recipes.length === 0) {
-     
-      console.log('recipes sent:',recipes);
+
+
       return res.status(200).json([]);
     }
-    console.log('recipes sent:',recipes);
+
     res.status(200).json(recipes);
   } catch (error) {
     console.error('Error fetching recipes by page:', error);
@@ -358,19 +370,9 @@ exports.searchRecipesByName = async (req, res) => {
       limit: pageSize  // Ensure limit is set from the query parameters or default
     };
 
-    console.log('Executing search with:', {
-      query,
-      regex: regex.toString(),
-      options
-    });
-
     const recipes = await Recipe.find({ recipeTitle: { $regex: regex } }, null, options);
     const total = await Recipe.countDocuments({ recipeTitle: { $regex: regex } });
 
-    console.log('Search results:', {
-      recipes,
-      total
-    });
 
     res.json({
       success: true,
