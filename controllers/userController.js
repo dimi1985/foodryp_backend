@@ -18,12 +18,12 @@ const storage = multer.diskStorage({
   }
 });
 
-
 const upload = multer({ storage: storage });
 
 exports.registerUser = async (req, res) => {
   try {
-    const { username, email, password, gender, profileImage, memberSince, role, recipes, following, followedBy, likedRecipes,mealId,followedByRequest } = req.body;
+    const { username, email, password, gender, profileImage, memberSince, role, recipes, mealId, likedRecipes,
+      followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -32,7 +32,10 @@ exports.registerUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({ username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(req.body.memberSince), role, recipes, following, followedBy, likedRecipes,mealId,followedByRequest });
+    const newUser = new User({
+      username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(req.body.memberSince),
+      role, recipes, mealId, likedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled
+    });
     await newUser.save();
 
     res.status(201).json({ message: 'User registered successfully', userId: newUser._id });
@@ -134,11 +137,11 @@ exports.uploadProfilePicture = async (req, res) => {
         { $set: { profileImage: req.file.path } } // Update: set the new profile picture URL
       );
 
-       // Update the recipe documents with the new profile picture URL
-await Recipe.updateMany(
-  { userId: userId }, // Filter criteria: find recipes by userId
-  { $set: { useImage: req.file.path } } // Update: set the new profile picture URL
-);
+      // Update the recipe documents with the new profile picture URL
+      await Recipe.updateMany(
+        { userId: userId }, // Filter criteria: find recipes by userId
+        { $set: { useImage: req.file.path } } // Update: set the new profile picture URL
+      );
 
 
       res.status(200).json({ message: 'Profile picture uploaded successfully' });
@@ -171,6 +174,8 @@ exports.getAllUsers = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+
 
 exports.getUsersByPage = async (req, res) => {
   try {
@@ -267,190 +272,6 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-exports.getFollowingUsers = async (req, res) => {
-  try {
-
-    const userId = req.params.userId;
-
-    // Find the user by ID and populate the followedUsers field (assuming it's an array of user IDs)
-    const user = await User.findById(userId).populate('following');
-
-    // Extract the followed users from the user object
-    const following = user.following;
-   
-    res.status(200).json(following);
-  } catch (error) {
-    console.error('Error fetching followed users:', error);
-    res.status(500).json({ error: 'Failed to load followed users' });
-  }
-}
-
-exports.followUser = async (req, res) => {
-  try {
-    const { userId, userToFollow, followedByRequest } = req.body; // Destructure userId, userToFollow, and followedByRequest
-
-    // Find the user to follow
-    let user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Check if the current user is already following the user
-    const isFollowing = user.following.includes(userToFollow);
-
-    if (isFollowing) {
-      return res.status(400).json({ error: 'User is already followed' });
-    } else {
-      // If not following, add to following list
-      user.following.push(userToFollow);
-
-      // Update the followed user's followedBy list
-      const followedUser = await User.findById(userToFollow);
-      followedUser.followedBy.push(userId);
-
-      // Update the followed user's followedByRequest list
-      followedUser.followedByRequest.push(userId);
-
-      // Save changes to both users
-      await user.save();
-      await followedUser.save();
-
-      res.status(200).json({ message: 'User followed successfully' });
-    }
-  } catch (error) {
-    console.error('Error following user:', error);
-    res.status(500).json({ error: 'Failed to follow user' });
-  }
-}
-
-
-exports.unfollowUser = async (req, res) => {
-  try {
-    const { userId, userToUnfollow } = req.body;
-
-    // Find the user to unfollow
-    let user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Check if the current user is following the user
-    const followingIndex = user.following.indexOf(userToUnfollow);
-    if (followingIndex === -1) {
-      return res.status(400).json({ error: 'User is not followed' });
-    } else {
-      // If following, remove from following list
-      user.following.splice(followingIndex, 1);
-
-      // Update the followed user's followedBy list
-      let followedUser = await User.findById(userToUnfollow);
-      if (!followedUser) {
-        return res.status(404).json({ error: 'Followed user not found' });
-      }
-
-      const followedByIndex = followedUser.followedBy.indexOf(userId);
-      if (followedByIndex !== -1) {
-        followedUser.followedBy.splice(followedByIndex, 1);
-      }
-
-      // Remove the userId from followedByRequest
-      const followedByRequestIndex = followedUser.followedByRequest.indexOf(userId);
-      if (followedByRequestIndex !== -1) {
-        followedUser.followedByRequest.splice(followedByRequestIndex, 1);
-      }
-
-      // Save changes to both users
-      await user.save();
-      await followedUser.save();
-
-      res.status(200).json({ message: 'User unfollowed successfully' });
-    }
-  } catch (error) {
-    console.error('Error unfollowing user:', error);
-    res.status(500).json({ error: 'Failed to unfollow user' });
-  }
-};
-
-exports.searchUsersByFollowedByRequest = async (req, res) => {
-  try {
-    const { userId, userIds } = req.body;
-
-    // Find the current user by their ID
-    const currentUser = await User.findById(userId);
-    if (!currentUser) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Initialize an empty array to store users found by followedByRequest
-    let usersFound = [];
-
-    // Iterate over the array of user IDs
-    for (const id of userIds) {
-      // Find the user by their ID
-      const user = await User.findById(id);
-      if (user) {
-        // Add the user to the list if found
-        usersFound.push(user);
-      }
-    }
-
-    res.status(200).json(usersFound);
-  } catch (error) {
-    console.error('Error searching users by followedByRequest:', error);
-    res.status(500).json({ error: 'Failed to search users by followedByRequest' });
-  }
-};
-
-
-exports.followBack = async (req, res) => {
-  try {
-    const { userId, userToFollowBack } = req.body;
-
-    // Find the user to follow back
-    let user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Find the user to follow
-    let followedUser = await User.findById(userToFollowBack);
-    if (!followedUser) {
-      return res.status(404).json({ error: 'User to follow back not found' });
-    }
-
-    // Check if the current user is already followed by the user to follow back
-    const isFollowed = followedUser.followedBy.includes(userId);
-    if (isFollowed) {
-      return res.status(400).json({ error: 'User is already followed by the user to follow back' });
-    }
-
-    // Follow back: add userId to followedBy of followedUser and remove userId from followedByRequest of user
-    followedUser.followedBy.push(userId);
-    
-    const followedByRequestIndex = user.followedByRequest.indexOf(userToFollowBack);
-    if (followedByRequestIndex !== -1) {
-      user.followedByRequest.splice(followedByRequestIndex, 1);
-    }
-
-    // Push userId of followedBy into the users following field
-    user.following.push(userToFollowBack);
-
-    // Save changes to both users
-    await user.save();
-    await followedUser.save();
-
-    res.status(200).json({ message: 'Followed back successfully' });
-  } catch (error) {
-    console.error('Error following back:', error);
-    res.status(500).json({ error: 'Failed to follow back' });
-  }
-};
-
-
-
-
-
 exports.changeCredentials = async (req, res) => {
   const userId = req.params.userId;
 
@@ -493,16 +314,16 @@ exports.changeCredentials = async (req, res) => {
 exports.getPublicUserProfile = async (req, res) => {
   try {
     const { username } = req.params;
-  
+
     // Find the user by username
     const user = await User.findOne({ username });
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     // Return the user profile
-   
+
     res.status(200).json(user);
   } catch (error) {
     console.error('Error fetching user profile:', error);
@@ -513,14 +334,14 @@ exports.getPublicUserProfile = async (req, res) => {
 exports.addFridgeItem = async (req, res) => {
   try {
 
-    const { userId,name,category } = req.body;
+    const { userId, name, category } = req.body;
     const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found." });
     }
 
-    const newItem = { name,category };
+    const newItem = { name, category };
     user.fridgeItems.push(newItem);
     await user.save();
 
@@ -534,8 +355,15 @@ exports.addFridgeItem = async (req, res) => {
 exports.getFridgeItems = async (req, res) => {
   try {
     const userId = req.params.userId;
+
+    // Validate userId
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "User ID is required" });
+    }
+
+    // Fetch user and populate fridgeItems
     const user = await User.findById(userId).populate('fridgeItems');
-    
+
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
@@ -550,6 +378,7 @@ exports.getFridgeItems = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
 
 exports.updateFridgeItem = async (req, res) => {
   const { userId, oldItemName, newItem } = req.body;
@@ -577,9 +406,6 @@ exports.updateFridgeItem = async (req, res) => {
   }
 };
 
-
-
-
 exports.deleteFridgeItem = async (req, res) => {
   try {
     const { userId, itemName } = req.query; // Assuming you are sending userId and itemName as query parameters
@@ -603,4 +429,129 @@ exports.deleteFridgeItem = async (req, res) => {
     res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
+
+
+
+exports.sendFollowRequest = async (req, res) => {
+  try {
+    const { userId, userToFollowId } = req.body;
+    console.log(userId)
+    console.log(userToFollowId)
+    // Logic to send follow request
+    const user = await User.findById(userId);
+    const userToFollow = await User.findById(userToFollowId);
+
+    if (!user || !userToFollow) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Check if the user is already following or has sent a follow request
+    if (userToFollow.followers.includes(user._id) || userToFollow.followRequestsSent.includes(user._id)) {
+      return res.status(400).json({ success: false, message: "Follow request already sent or user already followed" });
+    }
+
+    if (userToFollow.following.includes(user._id) || user.followers.includes(userToFollow._id)) {
+      userToFollow.followers.push(user._id);
+      user.following.push(userToFollow._id)
+      await userToFollow.save();
+      await user.save();
+    } else {
+
+      // Add userId to userToFollow's followRequestsReceived list
+      userToFollow.followRequestsReceived.push(user._id);
+      await userToFollow.save();
+
+      // Add userToFollowId to user's followRequestsSent list
+      user.followRequestsSent.push(userToFollow._id);
+      await user.save();
+    }
+
+
+
+    res.status(200).json({ success: true, message: "Follow request sent" });
+  } catch (error) {
+    console.error('Error sending follow request:', error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+exports.rejectFollowRequest = async (req, res) => {
+  try {
+    const { userId, userToRejectId } = req.body;
+    console.log(userId, userToRejectId);
+    const user = await User.findById(userId);
+    const usertoReject = await User.findById(userToRejectId);
+    // Remove userToRejectId from user's following array
+    await User.findByIdAndUpdate(userId, { $pull: { followRequestsReceived: userToRejectId } });
+
+    // Remove userId from userToReject's list of received follow requests
+    await User.findByIdAndUpdate(userToRejectId, { $pull: { followRequestsSent: userId } });
+
+
+
+    // Add userToRejectId to user's following list
+    usertoReject.following.push(userId);
+    usertoReject.followRequestsCanceled.push(userId);
+
+    user.followers.push(userToRejectId)
+    await user.save();
+    await usertoReject.save();
+
+    res.status(200).json({ success: true, message: "Follow request rejected" });
+  } catch (error) {
+    console.error('Error rejecting follow request:', error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+
+exports.followUserBack = async (req, res) => {
+  try {
+    const { userId, userToFollowBackId } = req.body;
+    console.log(userId, userToFollowBackId);
+    const user = await User.findById(userId);
+    const userToFollowBack = await User.findById(userToFollowBackId);
+
+
+    // Remove userId from userToReject's list of received follow requests
+    await User.findByIdAndUpdate(userToFollowBackId, { $pull: { followRequestsCanceled: userId } });
+
+    // Add userToRejectId to user's following list
+    userToFollowBack.followers.push(userId);
+    user.following.push(userId);
+    await user.save();
+    await userToFollowBack.save();
+
+    res.status(200).json({ success: true, message: "Follow request rejected" });
+  } catch (error) {
+    console.error('Error rejecting follow request:', error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+exports.unfollowUser = async (req, res) => {
+  try {
+    const { userId, userToUnfollowId } = req.body;
+
+    // Logic to unfollow user
+    // Example:
+    const currentUser = await User.findById(userId);
+    const userToUnfollow = await User.findById(userToUnfollowId);
+    if (!currentUser || !userToUnfollow) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Remove userToUnfollow's ID from currentUser's following array
+    await User.findByIdAndUpdate(userToUnfollow, { $pull: { followers: userId } });
+
+    // Remove currentUser's ID from userToUnfollow's followers array
+    await User.findByIdAndUpdate(userId, { $pull: { following: userToUnfollowId } });
+
+    res.status(200).json({ success: true, message: 'User unfollowed successfully' });
+  } catch (error) {
+    console.error('Error unfollowing user:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 

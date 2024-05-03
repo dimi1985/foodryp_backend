@@ -22,20 +22,20 @@ const upload = multer({ storage: storage });
 exports.saveCategory = async (req, res) => {
   try {
     const { name, font, color, recipes } = req.body;
-    console.log(name, font, color, recipes)
+
     const existingCategory = await Category.findOne({ name });
     if (existingCategory) {
       return res.status(400).json({ message: 'Category already exists' });
     }
 
     const newCategory = new Category({ name, font, color, recipes });
-    console.log(newCategory)
+
     await newCategory.save();
 
     res.status(201).json({ message: 'Category saved successfully', categoryId: newCategory._id });
 
   } catch (error) {
-    console.log('Internal server error', error)
+ 
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -103,7 +103,7 @@ exports.deleteCategory = async (req, res) => {
          
           await defaultCategory.save();
         } else {
-          console.log('Default category not found or missing required fields');
+  
         }
       }
     }
@@ -113,7 +113,7 @@ exports.deleteCategory = async (req, res) => {
 
     res.status(200).json({ message: 'Category deleted successfully' });
   } catch (error) {
-    console.log('Internal server error', error);
+ 
     res.status(500).json({ message: 'Internal server error' });
   }
 };

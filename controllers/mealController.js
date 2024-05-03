@@ -135,7 +135,7 @@ exports.updateWeeklyMenu = async (req, res) => {
       
         // Find the meal by ID
         const meal = await Meal.findById(mealId);
-        console.log('meal found:', meal);
+
         if (!meal) {
             return res.status(404).json({ message: 'Meal not found' });
         }
@@ -169,7 +169,7 @@ exports.updateWeeklyMenu = async (req, res) => {
             // Save the updated recipe
             await recipe.save();
 
-            console.log('recipe save:', recipe);
+         
         }
 
         // Iterate over each old recipe ID and remove the meal ID from the recipe

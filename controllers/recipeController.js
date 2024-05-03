@@ -33,9 +33,6 @@ exports.saveRecipe = async (req, res) => {
       userId, dateCreated, description, recipeImage, instructions,
       categoryId, categoryColor, categoryFont, categoryName, likedBy, meal } = req.body;
 
-
-
-
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
 

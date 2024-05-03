@@ -4,24 +4,23 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
-   getAllUsers, updateUserRole,deleteUser,getFollowingUsers,searchUsersByFollowedByRequest,
-    followUser,unfollowUser,followBack,changeCredentials,getPublicUserProfile,getUsersByPage, addFridgeItem,getFridgeItems,updateFridgeItem ,deleteFridgeItem} = require('./controllers/userController');
-const { saveCategory, uploadCategoryImage, getAllCategories,getFixedCategories,getCategoriesByPage,updateCategory,deleteCategory } = require('./controllers/categoryController');
+  getAllUsers, updateUserRole, deleteUser,
+  changeCredentials, getPublicUserProfile, getUsersByPage, addFridgeItem, getFridgeItems, updateFridgeItem, deleteFridgeItem,sendFollowRequest,rejectFollowRequest,followUserBack,unfollowUser } = require('./controllers/userController');
+const { saveCategory, getAllCategories, getFixedCategories, getCategoriesByPage, updateCategory, deleteCategory } = require('./controllers/categoryController');
 const { saveRecipe, uploadRecipeImage, getAllRecipes,
-  likeRecipe,dislikeRecipe, updateRecipe,deleteRecipe,
-  getUserPublicRecipesByPage,getRecipesByCategory
-  ,getFixedRecipes,getAllRecipesByPage ,getUserRecipesByPage,searchRecipesByName} = require('./controllers/recipeController');
+  likeRecipe, dislikeRecipe, updateRecipe, deleteRecipe,
+  getUserPublicRecipesByPage, getRecipesByCategory
+  , getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName } = require('./controllers/recipeController');
 
-  const {saveWeeklyMenu,getWeeklyMenusByPage,getWeeklyMenusByPageAndUser,getWeeklyMenusFixedLength,updateWeeklyMenu} = require('./controllers/mealController');
+const { saveWeeklyMenu, getWeeklyMenusByPage, getWeeklyMenusByPageAndUser, getWeeklyMenusFixedLength, updateWeeklyMenu } = require('./controllers/mealController');
+const { createComment,getComments, updateComment, deleteComment } = require('./controllers/commentController');
+
 const app = express();
 const port = 3000;
 
 // Middleware setup
 app.use(bodyParser.json());
 app.use(cors());
-
-
-
 
 app.use('/profilePictures', express.static('profilePictures'));
 
@@ -45,24 +44,24 @@ mongoose.connect('mongodb://localhost:27017/foodryp')
 const db = mongoose.connection;
 
 app.get('/api/allUsers', getAllUsers);
-app.get('/api/getUsersByPage', getUsersByPage); 
+app.get('/api/getUsersByPage', getUsersByPage);
 app.post('/api/register', registerUser);
 app.post('/api/login', loginUser);
 app.get('/api/userProfile/:userId', getUserProfile);
-app.post('/api/uploadProfilePic', uploadProfilePicture); 
+app.post('/api/uploadProfilePic', uploadProfilePicture);
 app.put('/api/userRole/:userId', updateUserRole);
 app.delete('/api/deleteUser/:userId', deleteUser);
-app.get('/api/getFollowingUsers/:userId', getFollowingUsers);
-app.post('/api/followUser', followUser);
-app.post('/api/unfollowUser', unfollowUser);
-app.post('/api/searchUsersByFollowedByRequest', searchUsersByFollowedByRequest);
-app.post('/api/followBack', followBack);    
 app.put('/api/changeCredentials/:userId', changeCredentials);
 app.get('/api/getPublicUserProfile/:username', getPublicUserProfile);
-app.post('/api/addFridgeItem', addFridgeItem);  
+app.post('/api/addFridgeItem', addFridgeItem);
 app.get('/api/getFridgeItems/:userId', getFridgeItems);
 app.delete('/api/deleteFridgeItem/', deleteFridgeItem);
 app.put('/api/updateFridgeItem/', updateFridgeItem);
+
+app.post('/api/sendFollowRequest', sendFollowRequest);
+app.post('/api/rejectFollowRequest', rejectFollowRequest);
+app.post('/api/followUserBack', followUserBack);
+app.post('/api/unfollowUser/', unfollowUser);
 
 
 app.post('/api/saveCategory/', saveCategory);
@@ -75,13 +74,13 @@ app.delete('/api/deleteCategory/:categoryId', deleteCategory);
 
 
 app.post('/api/saveRecipe/', saveRecipe);
-app.post('/api/uploadRecipeImage', uploadRecipeImage); 
+app.post('/api/uploadRecipeImage', uploadRecipeImage);
 app.get('/api/recipes/', getAllRecipes);
 app.post('/api/recipe/likeRecipe', likeRecipe);
 app.post('/api/recipe/dislikeRecipe', dislikeRecipe);
 app.put('/api/updateRecipe/:recipeId', updateRecipe);
 app.delete('/api/deleteRecipe/:recipeId', deleteRecipe);
-app.get('/api/getRecipesByCategory/:categoryName', getRecipesByCategory); 
+app.get('/api/getRecipesByCategory/:categoryName', getRecipesByCategory);
 app.get('/api/recipes/getFixedRecipes', getFixedRecipes);
 app.get('/api/getAllRecipesByPage', getAllRecipesByPage);
 app.get('/api/getUserRecipesByPage/:userId', getUserRecipesByPage);
@@ -94,6 +93,15 @@ app.get('/api/getWeeklyMenusByPage/', getWeeklyMenusByPage);
 app.get('/api/getWeeklyMenusByPageAndUser', getWeeklyMenusByPageAndUser);
 app.get('/api/getWeeklyMenusFixedLength', getWeeklyMenusFixedLength);
 app.put('/api/updateWeeklyMenu', updateWeeklyMenu);
+
+
+
+//Comement Section
+// Using authenticate middleware on protected routes
+app.post('/api/createComment', createComment);
+app.get('/api/getComments/:recipeId', getComments);
+app.put('/api/updateComment/:commentId', updateComment);
+app.delete('/api/deleteComment/:commentId', deleteComment);
 
 // Start the server
 app.listen(port, () => {

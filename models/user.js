@@ -17,13 +17,15 @@ const userSchema = new mongoose.Schema({
   memberSince: { type: Date, default: Date.now },
   role: String,
   recipes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }],
-  following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  followedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   likedRecipes: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Recipe',
   }],
-  followedByRequest: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  followRequestsSent: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  followRequestsReceived: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  followRequestsCanceled: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   mealId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Meal' }],
   fridgeItems: [fridgeItemSchema], // Embed fridge items array
 });
