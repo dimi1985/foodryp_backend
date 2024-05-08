@@ -109,14 +109,17 @@ exports.uploadRecipeImage = async (req, res) => {
 
 exports.updateRecipe = async (req, res) => {
   try {
-
     const recipeId = req.params.recipeId;
-
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
       categoryId, categoryColor, categoryFont, categoryName, likedBy, meal } = req.body;
 
+    // First, find the current recipe to check the existing category ID
+    const existingRecipe = await Recipe.findById(recipeId);
+    if (!existingRecipe) {
+      return res.status(404).json({ message: 'Recipe not found' });
+    }
 
     // Update the recipe fields
     const updateFields = {
@@ -125,25 +128,32 @@ exports.updateRecipe = async (req, res) => {
       categoryId, categoryColor, categoryFont, categoryName, likedBy, meal
     };
 
-
     // Check if the recipe exists and update it
     const result = await Recipe.updateOne({ _id: recipeId }, { $set: updateFields });
 
+    // Check if the category has changed
+    if (existingRecipe.categoryId.toString() !== categoryId) {
+      // Remove recipe from the old category
+      await Category.findByIdAndUpdate(existingRecipe.categoryId, { $pull: { recipes: recipeId } });
 
-    // Update category recipes field
-    await Category.findByIdAndUpdate(categoryId, { $push: { recipes: recipeId } });
+      // Add recipe to the new category
+      await Category.findByIdAndUpdate(categoryId, { $push: { recipes: recipeId } });
+    } else {
+      // If category has not changed, just ensure it's in the category list
+      await Category.findByIdAndUpdate(categoryId, { $addToSet: { recipes: recipeId } });
+    }
 
-    // Find the default category document
-    const defaultCategory = await Category.findOne({ name: 'Uncategorized' });
-
-    // Pull recipe ID from the default category's recipes array
-    await Category.updateOne(
-      { _id: defaultCategory._id },
-      { $pull: { recipes: recipeId } }
-    );
+    // Remove recipe ID from the default 'Uncategorized' category, if it has been categorized now
+    if (categoryId !== 'Uncategorized') {
+      const defaultCategory = await Category.findOne({ name: 'Uncategorized' });
+      await Category.updateOne(
+        { _id: defaultCategory._id },
+        { $pull: { recipes: recipeId } }
+      );
+    }
 
     if (result.nModified === 0) {
-      return res.status(404).json({ message: 'Recipe not found' });
+      return res.status(404).json({ message: 'No changes made to the recipe' });
     }
 
     res.status(200).json({ message: 'Recipe updated successfully' });
@@ -389,6 +399,22 @@ exports.searchRecipesByName = async (req, res) => {
   }
 };
 
+exports.getTopThreeRecipes = async (req, res) => {
+  try {
+    // Fetch the top three recipes sorted by 'likes' in descending order
+    const recipes = await Recipe.find().sort({likes: -1}).limit(3);
+
+    // Check if any recipes found
+    if (!recipes.length) {
+      return res.status(204).json({ message: 'No recipes found' }); // No Content
+    }
+
+    res.status(200).json(recipes);
+  } catch (error) {
+    console.error('Error fetching top three recipes:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
 
 
 

@@ -71,7 +71,7 @@ exports.getUserProfile = async (req, res) => {
 
   try {
     // Check if userId is provided
-    if (!userId) {
+    if (!userId && userId != null) {
       return res.status(400).json({ message: 'User ID is required' });
     }
 
@@ -86,8 +86,7 @@ exports.getUserProfile = async (req, res) => {
     // Send user profile as JSON response
     res.status(200).json(userProfile);
   } catch (error) {
-    console.error('Error fetching user profile:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    return null;
   }
 };
 

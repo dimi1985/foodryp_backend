@@ -10,7 +10,7 @@ const { saveCategory, getAllCategories, getFixedCategories, getCategoriesByPage,
 const { saveRecipe, uploadRecipeImage, getAllRecipes,
   likeRecipe, dislikeRecipe, updateRecipe, deleteRecipe,
   getUserPublicRecipesByPage, getRecipesByCategory
-  , getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName } = require('./controllers/recipeController');
+  , getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName,getTopThreeRecipes } = require('./controllers/recipeController');
 
 const { saveWeeklyMenu, getWeeklyMenusByPage, getWeeklyMenusByPageAndUser, getWeeklyMenusFixedLength, updateWeeklyMenu } = require('./controllers/mealController');
 const { createComment,getComments, updateComment, deleteComment } = require('./controllers/commentController');
@@ -86,6 +86,7 @@ app.get('/api/getAllRecipesByPage', getAllRecipesByPage);
 app.get('/api/getUserRecipesByPage/:userId', getUserRecipesByPage);
 app.get('/api/getUserPublicRecipes/:username', getUserPublicRecipesByPage);
 app.get('/api/searchRecipesByName', searchRecipesByName);
+app.get('/api/getTopThreeRecipes', getTopThreeRecipes);
 
 
 app.post('/api/saveWeeklyMenu', saveWeeklyMenu);

@@ -43,30 +43,40 @@ exports.saveCategory = async (req, res) => {
 
 exports.updateCategory = async (req, res) => {
   try {
-
     const categoryId = req.params.categoryId;
+    const { name, font, color } = req.body;
 
-    const { name, font, color, recipes } = req.body;
+    // Update the category fields
+    const categoryUpdateResult = await Category.updateOne({ _id: categoryId }, { $set: { name, font, color } });
 
-
-    // Update the recipe fields
-    const updateFields = { categoryId, name, font, color, recipes };
-
-
-    // Check if the recipe exists and update it
-    const result = await Category.updateOne({ _id: categoryId }, { $set: updateFields });
-
-
-    if (result.nModified === 0) {
+    if (categoryUpdateResult.nModified === 0) {
       return res.status(404).json({ message: 'Category not found' });
     }
 
-    res.status(200).json({ message: 'Category updated successfully' });
+    // Update all recipes that are linked to this category
+    const recipesUpdateResult = await Recipe.updateMany(
+      { categoryId: categoryId },
+      {
+        $set: {
+          categoryName: name,
+          categoryFont: font,
+          categoryColor: color
+        }
+      }
+    );
+
+    // Check if recipes were updated (optional, could remove if not needed)
+    if (recipesUpdateResult.nModified === 0) {
+      console.log('No recipes were updated');  // Log for information, may not be an error
+    }
+
+    res.status(200).json({ message: 'Category and associated recipes updated successfully' });
   } catch (error) {
     console.error('Error updating Category:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 exports.deleteCategory = async (req, res) => {
   try {
