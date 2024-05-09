@@ -88,7 +88,6 @@ app.get('/api/getUserPublicRecipes/:username', getUserPublicRecipesByPage);
 app.get('/api/searchRecipesByName', searchRecipesByName);
 app.get('/api/getTopThreeRecipes', getTopThreeRecipes);
 
-
 app.post('/api/saveWeeklyMenu', saveWeeklyMenu);
 app.get('/api/getWeeklyMenusByPage/', getWeeklyMenusByPage);
 app.get('/api/getWeeklyMenusByPageAndUser', getWeeklyMenusByPageAndUser);

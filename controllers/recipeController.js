@@ -326,7 +326,7 @@ exports.getRecipesByCategory = async (req, res) => {
       .skip(skipCount)
       .limit(parseInt(pageSize));
 
-
+    
 
     res.status(200).json(recipes);
   } catch (error) {
