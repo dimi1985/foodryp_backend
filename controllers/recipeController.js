@@ -326,7 +326,7 @@ exports.getRecipesByCategory = async (req, res) => {
       .skip(skipCount)
       .limit(parseInt(pageSize));
 
-    
+
 
     res.status(200).json(recipes);
   } catch (error) {
@@ -349,11 +349,11 @@ exports.getAllRecipesByPage = async (req, res) => {
 
     // If there are no recipes, return an empty array instead of throwing an error
     if (recipes.length === 0) {
-
+      console.log(recipes)
 
       return res.status(200).json([]);
     }
-
+    console.log(recipes)
     res.status(200).json(recipes);
   } catch (error) {
     console.error('Error fetching recipes by page:', error);
@@ -370,25 +370,18 @@ exports.searchRecipesByName = async (req, res) => {
     const page = parseInt(req.query.page, 1) || 1;  // Correct radix to 10
     const pageSize = parseInt(req.query.pageSize, 10) || 10;  // Ensure pageSize is parsed correctly
     const query = req.query.query || '';
-
     const regex = new RegExp(query, 'i');
+    console.log('The qeury for search is : ', query);
+    console.log('regex is : ', regex);
+    const total = await Recipe.countDocuments({ recipeTitle: { $regex: regex } });
     const options = {
       skip: (page - 1) * pageSize,  // Correctly calculate skip
-      limit: pageSize  // Ensure limit is set from the query parameters or default
+      limit: total  // Ensure limit is set from the query parameters or default
     };
 
     const recipes = await Recipe.find({ recipeTitle: { $regex: regex } }, null, options);
-    const total = await Recipe.countDocuments({ recipeTitle: { $regex: regex } });
-
-
-    res.json({
-      success: true,
-      query,
-      regex: regex.toString(),
-      options,
-      recipes,
-      total
-    });
+  
+    res.json({recipes});
   } catch (error) {
     console.error('Search recipes error:', error);
     res.status(500).json({
@@ -402,7 +395,7 @@ exports.searchRecipesByName = async (req, res) => {
 exports.getTopThreeRecipes = async (req, res) => {
   try {
     // Fetch the top three recipes sorted by 'likes' in descending order
-    const recipes = await Recipe.find().sort({likes: -1}).limit(3);
+    const recipes = await Recipe.find().sort({ likes: -1 }).limit(3);
 
     // Check if any recipes found
     if (!recipes.length) {
