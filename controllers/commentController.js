@@ -1,9 +1,11 @@
 const Comment = require('../models/comment');
+const User = require('../models/user');
+const Recipe = require('../models/recipe');
+
+
 
 exports.createComment = async (req, res) => {
-
     const { text, userId, recipeId, username, useImage, replies } = req.body;
-
 
     try {
         const newComment = new Comment({
@@ -15,14 +17,20 @@ exports.createComment = async (req, res) => {
             replies
         });
 
-
         const savedComment = await newComment.save();
+
+        // Update user's commentId array
+        await User.findByIdAndUpdate(userId, { $push: { commentId: savedComment._id } });
+
+        // Update recipe's commentId array
+        await Recipe.findByIdAndUpdate(recipeId, { $push: { commentId: savedComment._id } });
 
         res.status(201).json(savedComment);
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 };
+
 
 
 exports.getComments = async (req, res) => {

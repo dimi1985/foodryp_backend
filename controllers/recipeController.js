@@ -2,28 +2,34 @@ const Recipe = require('../models/recipe');
 const Category = require('../models/category');
 const User = require('../models/user');
 const multer = require('multer');
+const aws = require('aws-sdk');
+const multerS3 = require('multer-s3');
 
 const fs = require('fs');
 const path = require('path');
 
 // Configure multer to handle category image uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'recipePictures'); // Adjust directory path if needed
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const recipeId = req.body.recipeId; // Assuming you have categoryId in the request body
-    cb(null, `${recipeId}${ext}`);
-  }
+const s3 = new aws.S3({
+  endpoint: 'http://localhost:9000', // Simplified endpoint setting
+  accessKeyId: 'RL0ICN8y0pGeJPZxIJfJ',
+  secretAccessKey: '1Z3jLUdxzemcHmJdS74WQoUWFIKV0nDgLVaIpgLo',
+  s3ForcePathStyle: true, // needed with MinIO
+  signatureVersion: 'v4'
 });
 
-
-
-
-
-
-const upload = multer({ storage: storage });
+const upload = multer({
+  storage: multerS3({
+    s3: s3,
+    bucket: 'server',
+    acl: 'public-read',
+    key: function (request, file, cb) {
+      console.log(file);
+      const folder = 'recipePictures'; // Specify the folder name here
+      const key = `${folder}/${file.originalname}`; // Concatenate folder name with the file name
+      cb(null, key); // Use the key for upload
+    }
+  })
+});
 
 // Method to save category with all fields and upload image (merged)
 exports.saveRecipe = async (req, res) => {
@@ -31,7 +37,7 @@ exports.saveRecipe = async (req, res) => {
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal } = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal ,commentId} = req.body;
 
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
@@ -42,7 +48,7 @@ exports.saveRecipe = async (req, res) => {
     const newRecipe = new Recipe({
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty,
       username, useImage, userId, dateCreated, description, recipeImage,
-      instructions, categoryId, categoryColor, categoryFont, categoryName, likedBy, meal
+      instructions, categoryId, categoryColor, categoryFont, categoryName, likedBy, meal,commentId
     });
 
     await newRecipe.save();
@@ -66,7 +72,7 @@ exports.saveRecipe = async (req, res) => {
 
 exports.uploadRecipeImage = async (req, res) => {
   try {
-    // Handling file upload
+    // Handling file upload with multer-s3
     const fileUpload = upload.single('recipeImage');
     fileUpload(req, res, async (err) => {
       if (err) {
@@ -75,6 +81,7 @@ exports.uploadRecipeImage = async (req, res) => {
       }
 
       if (!req.file) {
+         console.log('Retrieved recipe image:', recipe.recipeImage);
         return res.status(400).json({ message: 'No file uploaded' });
       }
 
@@ -82,24 +89,39 @@ exports.uploadRecipeImage = async (req, res) => {
       const recipe = await Recipe.findById(recipeId);
 
       if (!recipe) {
-
         return res.status(404).json({ message: 'Recipe not found' });
       }
 
-      // Deleting the old image if it exists
-      // if (recipe.recipeImage) {
-      //   try {
-      //     fs.unlinkSync(recipe.recipeImage);
-      //   } catch (deleteError) {
-      //     console.error('Error deleting old image file:', deleteError);
-      //   }
-      // }
+      // Delete the old image if it exists in the bucket
+      if (recipe.recipeImage) {
+        console.log('Retrieved recipe image:', recipe.recipeImage);
+        const key = recipe.recipeImage.replace('http://localhost:9000/server/', '');
+        const encodedKey = decodeURIComponent(key);
+        console.log("Found file with key:", encodedKey);
+      
+        const deleteParams = {
+          Bucket: 'server',
+          Key: encodedKey
+        };
 
-      // Updating the recipe with the new image
-      recipe.recipeImage = req.file.path;
-      await recipe.save();
+        console.log("deleteParams:", deleteParams);
+      
+        s3.deleteObject(deleteParams, function (deleteErr, data) {
+          if (deleteErr) {
+            console.error('Error deleting old image file:', deleteErr);
+          } else {
+            console.log('File deleted successfully', data);
+          }
+        });
+      }
 
-      res.status(200).json({ message: 'Recipe Image uploaded successfully', recipeImage: req.file.path });
+      // Update the recipe document with the new image URL
+      await Recipe.updateOne(
+        { _id: recipeId },
+        { $set: { recipeImage: req.file.location } } // Use the URL provided by MinIO
+      );
+
+      res.status(200).json({ message: 'Recipe Image uploaded successfully', recipeImage: req.file.location });
     });
   } catch (error) {
     console.error('Error handling the recipe image upload:', error);
@@ -107,13 +129,14 @@ exports.uploadRecipeImage = async (req, res) => {
   }
 };
 
+
 exports.updateRecipe = async (req, res) => {
   try {
     const recipeId = req.params.recipeId;
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal } = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal,commentId } = req.body;
 
     // First, find the current recipe to check the existing category ID
     const existingRecipe = await Recipe.findById(recipeId);
@@ -125,7 +148,7 @@ exports.updateRecipe = async (req, res) => {
     const updateFields = {
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal
+      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal,commentId
     };
 
     // Check if the recipe exists and update it

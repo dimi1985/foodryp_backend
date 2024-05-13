@@ -27,6 +27,7 @@ const userSchema = new mongoose.Schema({
   followRequestsReceived: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   followRequestsCanceled: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   mealId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Meal' }],
+  commentId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
   fridgeItems: [fridgeItemSchema], // Embed fridge items array
 });
 

@@ -4,26 +4,37 @@ const Category = require('../models/category');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const multer = require('multer');
+const aws = require('aws-sdk');
+const multerS3 = require('multer-s3');
 const fs = require('fs');
 
-// Configure multer to handle file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'profilePictures');
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const userId = req.body.userId;
-    cb(null, `${userId}${ext}`);
-  }
+const s3 = new aws.S3({
+  endpoint: 'http://localhost:9000', // Simplified endpoint setting
+  accessKeyId: 'RL0ICN8y0pGeJPZxIJfJ',
+  secretAccessKey: '1Z3jLUdxzemcHmJdS74WQoUWFIKV0nDgLVaIpgLo',
+  s3ForcePathStyle: true, // needed with MinIO
+  signatureVersion: 'v4'
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({
+  storage: multerS3({
+    s3: s3,
+    bucket: 'server',
+    acl: 'public-read',
+    key: function (request, file, cb) {
+      console.log(file);
+      const folder = 'profilePictures'; // Specify the folder name here
+      const key = `${folder}/${file.originalname}`; // Concatenate folder name with the file name
+      cb(null, key); // Use the key for upload
+    }
+  })
+});
+
 
 exports.registerUser = async (req, res) => {
   try {
     const { username, email, password, gender, profileImage, memberSince, role, recipes, mealId, likedRecipes,
-      followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, } = req.body;
+      followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled,commentId, } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -34,7 +45,7 @@ exports.registerUser = async (req, res) => {
 
     const newUser = new User({
       username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(req.body.memberSince),
-      role, recipes, mealId, likedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled
+      role, recipes, mealId, likedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled,commentId
     });
     await newUser.save();
 
@@ -91,58 +102,59 @@ exports.getUserProfile = async (req, res) => {
 };
 
 
-
-
 exports.uploadProfilePicture = async (req, res) => {
   try {
-    // Apply multer middleware for file upload
-    await upload.single('profilePicture')(req, res, async (err) => {
+    upload.single('profilePicture')(req, res, async (err) => {
       if (err) {
         console.error('Error uploading profile picture:', err);
         return res.status(400).json({ message: 'Error uploading file' });
       }
 
-      // Check if file upload was successful
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
       }
 
-      // Extract user ID from request body
       const userId = req.body.userId;
-
-      // Find user by ID
       let user = await User.findById(userId);
 
-      // If user doesn't exist, return error
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
+     
+      if (user.profileImage) {
+        console.log('Retrieved user profile picture:', user.profileImage);
+        const key = user.profileImage.replace('http://localhost:9000/server/', '');
+        const encodedKey = decodeURIComponent(key);
+        console.log("Found file with key:", encodedKey);
+      
+        const deleteParams = {
+          Bucket: 'server',
+          Key: encodedKey
+        };
 
-      // Check if user already has a profile picture
-      // If yes, delete the old image file
-      if (user.profilePicture) {
-        // Delete the old image file (if it exists)
-        try {
-          fs.unlinkSync(user.profilePicture);
-        } catch (deleteError) {
-          console.error('Error deleting old image file:', deleteError);
-          // Handle error deleting old image file
-        }
+        console.log("deleteParams:", deleteParams);
+      
+        s3.deleteObject(deleteParams, function (deleteErr, data) {
+          if (deleteErr) {
+            console.error('Error deleting old image file:', deleteErr);
+          } else {
+            console.log('File deleted successfully', data);
+          }
+        });
       }
 
       // Update the user document with the new profile picture URL
       await User.updateOne(
-        { _id: userId }, // Filter criteria: find user by ID
-        { $set: { profileImage: req.file.path } } // Update: set the new profile picture URL
+        { _id: userId },
+        { $set: { profileImage: req.file.location } } // Use the URL provided by MinIO
       );
 
       // Update the recipe documents with the new profile picture URL
       await Recipe.updateMany(
-        { userId: userId }, // Filter criteria: find recipes by userId
-        { $set: { useImage: req.file.path } } // Update: set the new profile picture URL
+        { userId: userId },
+        { $set: { useImage: req.file.location } } // Use the URL provided by MinIO
       );
-
-
+      console.log('Profile picture uploaded successfully');  
       res.status(200).json({ message: 'Profile picture uploaded successfully' });
     });
   } catch (error) {
@@ -150,6 +162,7 @@ exports.uploadProfilePicture = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 //Admin Methods!
 

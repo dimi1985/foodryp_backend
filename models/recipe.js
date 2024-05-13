@@ -74,6 +74,7 @@ const recipeSchema = new mongoose.Schema({
     ref: 'User',
   }],
   meal: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Meal' }],
+  commentId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
 });
 
 
