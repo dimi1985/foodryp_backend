@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
   getAllUsers, updateUserRole, deleteUser,
   changeCredentials, getPublicUserProfile, getUsersByPage, addFridgeItem, getFridgeItems, updateFridgeItem, deleteFridgeItem,sendFollowRequest,rejectFollowRequest,followUserBack,unfollowUser } = require('./controllers/userController');
-const { saveCategory, getAllCategories, getFixedCategories, getCategoriesByPage, updateCategory, deleteCategory } = require('./controllers/categoryController');
+const { saveCategory, getAllCategories, getFixedCategories, getCategoriesByPage, updateCategory, deleteCategory,uploadCategoryImage } = require('./controllers/categoryController');
 const { saveRecipe, uploadRecipeImage, getAllRecipes,
   likeRecipe, dislikeRecipe, updateRecipe, deleteRecipe,
   getUserPublicRecipesByPage, getRecipesByCategory
@@ -68,6 +68,7 @@ app.post('/api/unfollowUser/', unfollowUser);
 app.post('/api/saveCategory/', saveCategory);
 app.post('/api/updateCategory/:categoryId', updateCategory);
 app.get('/api/categories/', getAllCategories);
+app.post('/api/uploadCategoryImage', uploadCategoryImage);
 app.get('/api/categories/getFixedCategories', getFixedCategories);
 app.get('/api/getCategoriesByPage/', getCategoriesByPage);
 app.delete('/api/deleteCategory/:categoryId', deleteCategory);

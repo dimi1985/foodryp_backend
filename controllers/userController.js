@@ -10,11 +10,12 @@ const fs = require('fs');
 
 const s3 = new aws.S3({
   endpoint: 'http://localhost:9000', // Simplified endpoint setting
-  accessKeyId: 'RL0ICN8y0pGeJPZxIJfJ',
-  secretAccessKey: '1Z3jLUdxzemcHmJdS74WQoUWFIKV0nDgLVaIpgLo',
+  accessKeyId: '2psXwme54l3CTbmmco9h',
+  secretAccessKey: 'GefoUhDVl6Py7vnOGzxg3bSBDR0Tl4FeKRpzTjTt',
   s3ForcePathStyle: true, // needed with MinIO
   signatureVersion: 'v4'
 });
+
 
 const upload = multer({
   storage: multerS3({

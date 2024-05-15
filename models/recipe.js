@@ -75,6 +75,8 @@ const recipeSchema = new mongoose.Schema({
   }],
   meal: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Meal' }],
   commentId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
+  isForDiet: { type: Boolean, default: false }, // New field for diet
+  isForVegetarians: { type: Boolean, default: false } // New field for vegetarians
 });
 
 

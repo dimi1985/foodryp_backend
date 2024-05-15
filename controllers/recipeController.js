@@ -4,15 +4,13 @@ const User = require('../models/user');
 const multer = require('multer');
 const aws = require('aws-sdk');
 const multerS3 = require('multer-s3');
-
-const fs = require('fs');
 const path = require('path');
 
 // Configure multer to handle category image uploads
 const s3 = new aws.S3({
   endpoint: 'http://localhost:9000', // Simplified endpoint setting
-  accessKeyId: 'RL0ICN8y0pGeJPZxIJfJ',
-  secretAccessKey: '1Z3jLUdxzemcHmJdS74WQoUWFIKV0nDgLVaIpgLo',
+  accessKeyId: '2psXwme54l3CTbmmco9h',
+  secretAccessKey: 'GefoUhDVl6Py7vnOGzxg3bSBDR0Tl4FeKRpzTjTt',
   s3ForcePathStyle: true, // needed with MinIO
   signatureVersion: 'v4'
 });
@@ -37,7 +35,7 @@ exports.saveRecipe = async (req, res) => {
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal ,commentId} = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal ,commentId, isForDiet, isForVegetarians} = req.body;
 
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
@@ -48,7 +46,7 @@ exports.saveRecipe = async (req, res) => {
     const newRecipe = new Recipe({
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty,
       username, useImage, userId, dateCreated, description, recipeImage,
-      instructions, categoryId, categoryColor, categoryFont, categoryName, likedBy, meal,commentId
+      instructions, categoryId, categoryColor, categoryFont, categoryName, likedBy, meal,commentId,isForDiet, isForVegetarians
     });
 
     await newRecipe.save();
@@ -134,21 +132,25 @@ exports.updateRecipe = async (req, res) => {
   try {
     const recipeId = req.params.recipeId;
 
+    console.log("Recipe ID:", recipeId);
+    
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal,commentId } = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal, commentId,isForDiet, isForVegetarians } = req.body;
 
     // First, find the current recipe to check the existing category ID
     const existingRecipe = await Recipe.findById(recipeId);
     if (!existingRecipe) {
+      console.log("Recipe not found:", recipeId);
       return res.status(404).json({ message: 'Recipe not found' });
     }
+    console.log("Existing Recipe:", existingRecipe);
 
     // Update the recipe fields
     const updateFields = {
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal,commentId
+      categoryId, categoryColor, categoryFont, categoryName, likedBy, meal, commentId,isForDiet, isForVegetarians
     };
 
     // Check if the recipe exists and update it
@@ -157,22 +159,41 @@ exports.updateRecipe = async (req, res) => {
     // Check if the category has changed
     if (existingRecipe.categoryId.toString() !== categoryId) {
       // Remove recipe from the old category
-      await Category.findByIdAndUpdate(existingRecipe.categoryId, { $pull: { recipes: recipeId } });
+      const oldCategory = await Category.findById(existingRecipe.categoryId);
+      if (oldCategory) {
+        await Category.findByIdAndUpdate(existingRecipe.categoryId, { $pull: { recipes: recipeId } });
+      } else {
+        console.log("Old Category not found:", existingRecipe.categoryId);
+      }
 
       // Add recipe to the new category
-      await Category.findByIdAndUpdate(categoryId, { $push: { recipes: recipeId } });
+      const newCategory = await Category.findById(categoryId);
+      if (newCategory) {
+        await Category.findByIdAndUpdate(categoryId, { $push: { recipes: recipeId } });
+      } else {
+        console.log("New Category not found:", categoryId);
+      }
     } else {
       // If category has not changed, just ensure it's in the category list
-      await Category.findByIdAndUpdate(categoryId, { $addToSet: { recipes: recipeId } });
+      const category = await Category.findById(categoryId);
+      if (category) {
+        await Category.findByIdAndUpdate(categoryId, { $addToSet: { recipes: recipeId } });
+      } else {
+        console.log("Category not found for addToSet:", categoryId);
+      }
     }
 
     // Remove recipe ID from the default 'Uncategorized' category, if it has been categorized now
     if (categoryId !== 'Uncategorized') {
       const defaultCategory = await Category.findOne({ name: 'Uncategorized' });
-      await Category.updateOne(
-        { _id: defaultCategory._id },
-        { $pull: { recipes: recipeId } }
-      );
+      if (defaultCategory) {
+        await Category.updateOne(
+          { _id: defaultCategory._id },
+          { $pull: { recipes: recipeId } }
+        );
+      } else {
+        console.log("Default 'Uncategorized' Category not found");
+      }
     }
 
     if (result.nModified === 0) {
@@ -185,6 +206,7 @@ exports.updateRecipe = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 exports.getAllRecipes = async (req, res) => {
   try {
@@ -205,7 +227,7 @@ exports.getAllRecipes = async (req, res) => {
 exports.getFixedRecipes = async (req, res) => {
   try {
     const { length } = req.query;
-    const recipes = await Recipe.find().limit(parseInt(length, 10));
+    const recipes = await Recipe.find().sort({ dateCreated: -1 }).limit(parseInt(length, 10));
 
     if (!recipes.length) {
       return res.status(204).json({ message: 'No recipes found' });
@@ -217,6 +239,7 @@ exports.getFixedRecipes = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 
 
@@ -253,11 +276,9 @@ exports.dislikeRecipe = async (req, res) => {
 };
 
 exports.deleteRecipe = async (req, res) => {
-
   try {
     const { recipeId } = req.params;
     const { userId } = req.body;
-
 
     // Find the recipe to get the image path
     const recipe = await Recipe.findById(recipeId);
@@ -275,9 +296,23 @@ exports.deleteRecipe = async (req, res) => {
     // Remove recipe ID from the category
     await Category.updateMany({ recipes: recipeId }, { $pull: { recipes: recipeId } });
 
-    // Delete the recipe image file
+    // Delete the recipe image file from the bucket
     if (recipe.recipeImage) {
-      fs.unlinkSync(recipe.recipeImage);
+      const key = recipe.recipeImage.replace('http://localhost:9000/server/', '');
+      const encodedKey = decodeURIComponent(key);
+      
+      const deleteParams = {
+        Bucket: 'server',
+        Key: encodedKey
+      };
+
+      s3.deleteObject(deleteParams, function (deleteErr, data) {
+        if (deleteErr) {
+          console.error('Error deleting image file from bucket:', deleteErr);
+        } else {
+          console.log('Image file deleted successfully from bucket', data);
+        }
+      });
     }
 
     // Delete the recipe document
@@ -289,7 +324,6 @@ exports.deleteRecipe = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
-
 
 exports.getUserRecipesByPage = async (req, res) => {
   try {
@@ -363,26 +397,28 @@ exports.getAllRecipesByPage = async (req, res) => {
     const { page = 1, pageSize = 10 } = req.query;
 
     // Calculate skip count based on pagination parameters
-    const skipCount = (page - 1) * pageSize;
+    const skipCount = (page - 1) * parseInt(pageSize, 10);
 
-    // Fetch recipes with pagination
+    // Fetch recipes with pagination and sort by dateCreated in descending order
     const recipes = await Recipe.find()
+      .sort({ dateCreated: -1 })
       .skip(skipCount)
-      .limit(parseInt(pageSize));
+      .limit(parseInt(pageSize, 10));
 
     // If there are no recipes, return an empty array instead of throwing an error
     if (recipes.length === 0) {
-      console.log(recipes)
-
+      console.log(recipes);
       return res.status(200).json([]);
     }
-    console.log(recipes)
+
+    console.log(recipes);
     res.status(200).json(recipes);
   } catch (error) {
     console.error('Error fetching recipes by page:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 
 

@@ -14,7 +14,6 @@ exports.createComment = async (req, res) => {
             recipeId,
             username,
             useImage,
-            replies
         });
 
         const savedComment = await newComment.save();

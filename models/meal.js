@@ -10,6 +10,7 @@ const mealSchema = new mongoose.Schema({
     type: Date,
     default: Date.now, 
   },
+  isForDiet: { type: Boolean, default: false },
 });
 
 module.exports = mongoose.model('Meal', mealSchema);

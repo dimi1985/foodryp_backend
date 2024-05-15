@@ -6,7 +6,6 @@ const commentSchema = new mongoose.Schema({
   recipeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Recipe', required: true },  // Reference to the associated recipe
   username: { type: String },
   useImage: { type: String },
-  replies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],  // Reference to other comments
   dateCreated: { type: Date, default: Date.now },
   dateUpdated: { type: Date, default: Date.now }
 });

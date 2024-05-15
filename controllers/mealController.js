@@ -5,7 +5,7 @@ const User = require('../models/user');
 // Function to save a new weekly menu
 exports.saveWeeklyMenu = async (req, res) => {
     try {
-        const { title, dayOfWeek, userId, username, userProfileImage,dateCreated } = req.body;
+        const { title, dayOfWeek, userId, username, userProfileImage, dateCreated, isForDiet } = req.body;
 
         // Create a new meal object
         const meal = new Meal({
@@ -14,6 +14,7 @@ exports.saveWeeklyMenu = async (req, res) => {
             username,
             userProfileImage,
             dateCreated,
+            isForDiet
         });
 
         // Iterate over each dayOfWeek
@@ -28,7 +29,7 @@ exports.saveWeeklyMenu = async (req, res) => {
             // Add the recipe ID to the dayOfWeek array of the meal
             meal.dayOfWeek.push(dayRecipeId);
 
-           // Update the recipe with the meal ID
+            // Update the recipe with the meal ID
             recipe.meal.push(meal._id);
 
             // Save the updated recipe
@@ -81,26 +82,26 @@ exports.getWeeklyMenusByPage = async (req, res) => {
 exports.getWeeklyMenusFixedLength = async (req, res) => {
     try {
         const { length } = req.query;
-    
+
         // Convert length to an integer
         const desiredLength = parseInt(length);
-    
+
         // Query for weekly menus with the desired length and populate the dayOfWeek field with recipes
         const weeklyMenus = await Meal.find()
             .limit(desiredLength)
             .populate({
                 path: 'dayOfWeek',
-                model: 'Recipe' 
+                model: 'Recipe'
             })
             .exec();
-    
+
         // Respond with the list of weekly menus
         res.status(200).json(weeklyMenus);
     } catch (error) {
         console.error('Error fetching fixed-length weekly menus:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
-    
+
 };
 
 
@@ -130,9 +131,9 @@ exports.getWeeklyMenusByPageAndUser = async (req, res) => {
 
 exports.updateWeeklyMenu = async (req, res) => {
     try {
-        const { mealId, title, oldRecipes, newRecipes, userId, username, userProfileImage,dateCreated } = req.body;
+        const { mealId, title, oldRecipes, newRecipes, userId, username, userProfileImage, dateCreated, isForDiet } = req.body;
 
-      
+
         // Find the meal by ID
         const meal = await Meal.findById(mealId);
 
@@ -148,6 +149,7 @@ exports.updateWeeklyMenu = async (req, res) => {
         meal.username = username;
         meal.userProfileImage = userProfileImage;
         meal.dateCreated = dateCreated;
+        meal.isForDiet = isForDiet
 
         // Save the updated meal
         const updatedMeal = await meal.save();
@@ -169,7 +171,7 @@ exports.updateWeeklyMenu = async (req, res) => {
             // Save the updated recipe
             await recipe.save();
 
-         
+
         }
 
         // Iterate over each old recipe ID and remove the meal ID from the recipe
