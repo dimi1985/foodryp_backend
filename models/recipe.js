@@ -5,7 +5,6 @@ const recipeSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-
   recipeImage: {
     type: String,
   },
@@ -25,12 +24,10 @@ const recipeSchema = new mongoose.Schema({
   },
   servingNumber: {
     type: String,
-
     required: true,
   },
   difficulty: {
     type: String,
-
     required: true,
   },
   username: {
@@ -46,7 +43,7 @@ const recipeSchema = new mongoose.Schema({
   },
   dateCreated: {
     type: Date,
-    default: Date.now, // Set default date to current time
+    default: Date.now,
   },
   description: {
     type: String,
@@ -69,18 +66,18 @@ const recipeSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  likedBy: [{
+  recomendedBy: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   }],
   meal: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Meal' }],
   commentId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
-  isForDiet: { type: Boolean, default: false }, // New field for diet
-  isForVegetarians: { type: Boolean, default: false } // New field for vegetarians
+  isForDiet: { type: Boolean, default: false },
+  isForVegetarians: { type: Boolean, default: false },
+  rating: { type: Number, default: 0 }, // Added for storing average rating
+  ratingCount: { type: Number, default: 0 } // Added for storing count of ratings
 });
 
-
-// Create a text index on title and description
-recipeSchema.index({ title: 'text', description: 'text' });
+recipeSchema.index({ recipeTitle: 'text', description: 'text' });
 
 module.exports = mongoose.model('Recipe', recipeSchema);

@@ -8,8 +8,8 @@ const multerS3 = require('multer-s3');
 // Configure multer to handle category image uploads
 const s3 = new aws.S3({
   endpoint: 'http://localhost:9000', // Simplified endpoint setting
-  accessKeyId: '2psXwme54l3CTbmmco9h',
-  secretAccessKey: 'GefoUhDVl6Py7vnOGzxg3bSBDR0Tl4FeKRpzTjTt',
+  accessKeyId: 'qHs9NZ1FbCZQNmfllG8L',
+  secretAccessKey: 'coKQudDRlykMqQxIQrTWEC0aQwxOD8dojxZQAYDs',
   s3ForcePathStyle: true, // needed with MinIO
   signatureVersion: 'v4'
 });
@@ -20,7 +20,7 @@ const upload = multer({
     bucket: 'server',
     acl: 'public-read',
     key: function (request, file, cb) {
-      console.log(file);
+
       const folder = 'categoryPictures'; // Specify the folder name here
       const key = `${folder}/${file.originalname}`; // Concatenate folder name with the file name
       cb(null, key); // Use the key for upload
@@ -32,21 +32,21 @@ const upload = multer({
 exports.saveCategory = async (req, res) => {
   try {
     const { name, font, color, categoryImage, recipes, isForDiet, isForVegetarians } = req.body;
-    console.log('Got From Flutter:', name, font, color, categoryImage, recipes, isForDiet, isForVegetarians);
+
 
     const existingCategory = await Category.findOne({ name });
-    console.log('existingCategory:', existingCategory);
+
 
     if (existingCategory) {
-      console.log('Category already exists:', existingCategory);
+
       return res.status(400).json({ message: 'Category already exists' });
     }
 
     const newCategory = new Category({ name, font, color, categoryImage, recipes, isForDiet, isForVegetarians });
-    console.log('newCategory to save is:', newCategory);
+
 
     await newCategory.save();
-    console.log('Category saved successfully', newCategory);
+
 
     res.status(201).json({ message: 'Category saved successfully', categoryId: newCategory._id });
   } catch (error) {
@@ -59,70 +59,76 @@ exports.saveCategory = async (req, res) => {
 
 // Method to upload category image
 exports.uploadCategoryImage = async (req, res) => {
-  try {
-    console.log('Starting category image upload process');
+  const fileUpload = upload.single('categoryImage');
 
-    // Handling file upload with multer-s3
-    const fileUpload = upload.single('categoryImage');
-    fileUpload(req, res, async (err) => {
-      if (err) {
-        console.error('Error uploading category image:', err);
-        return res.status(400).json({ message: 'Error uploading file' });
-      }
+  fileUpload(req, res, async (err) => {
+    if (err) {
+      console.error('Error during file upload processing:', err);
+      return res.status(400).json({ message: 'Error uploading file: ' + err.message });
+    }
 
-      if (!req.file) {
-        console.error('No file uploaded');
-        return res.status(400).json({ message: 'No file uploaded' });
-      }
+    if (!req.file) {
+      console.warn('Upload attempt without a file');
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
 
-      console.log('File uploaded successfully:', req.file);
+    const categoryId = req.body.categoryId;
+    if (!categoryId) {
+      console.warn('No categoryId provided');
+      return res.status(400).json({ message: 'Category ID must be provided' });
+    }
 
-      const categoryId = req.body.categoryId;
-      console.log('Category ID from request:', categoryId);
-
+    try {
       const category = await Category.findById(categoryId);
-
       if (!category) {
-        console.error('Category not found:', categoryId);
+        console.warn(`No category found with ID: ${categoryId}`);
         return res.status(404).json({ message: 'Category not found' });
       }
 
-      // Delete the old image if it exists in the bucket
       if (category.categoryImage) {
-        const key = category.categoryImage.replace('http://localhost:9000/server/', '');
-        const encodedKey = decodeURIComponent(key);
-        console.log('Old image key to delete:', encodedKey);
+        const oldImageUrl = category.categoryImage;
+        console.log(`Attempting to delete old image at: ${oldImageUrl}`);
 
-        const deleteParams = {
-          Bucket: 'server',
-          Key: encodedKey
-        };
-
-        s3.deleteObject(deleteParams, function (deleteErr, data) {
-          if (deleteErr) {
-            console.error('Error deleting old image file:', deleteErr);
-          } else {
-            console.log('Old image file deleted successfully:', data);
-          }
-        });
+        try {
+          await deleteS3Object(oldImageUrl);
+          console.log(`Successfully deleted old image at: ${oldImageUrl}`);
+        } catch (deleteErr) {
+          console.error(`Failed to delete old image: ${deleteErr}`);
+          // Continue updating the new image even if old image deletion fails
+        }
       }
 
-      // Update the category document with the new image URL
-      console.log('Updating category with new image URL:', req.file.location);
-      await Category.updateOne(
-        { _id: categoryId },
-        { $set: { categoryImage: req.file.location } } // Use the URL provided by MinIO
-      );
+      console.log(`Updating category with new image URL: ${req.file.location}`);
+      await Category.updateOne({ _id: categoryId }, { $set: { categoryImage: req.file.location } });
 
-      console.log('Category image updated successfully');
       res.status(200).json({ message: 'Category image uploaded successfully', categoryImage: req.file.location });
-    });
-  } catch (error) {
-    console.error('Error handling the category image upload:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
+    } catch (dbError) {
+      console.error('Database error during category image update:', dbError);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
 };
 
+async function deleteS3Object(imageUrl) {
+  const bucketName = 'server'; // Adjust bucket name as necessary
+  const key = imageUrl.replace('http://localhost:9000/server/', '');
+  const encodedKey = decodeURIComponent(key);
+
+  const deleteParams = {
+    Bucket: bucketName,
+    Key: encodedKey
+  };
+
+  return new Promise((resolve, reject) => {
+    s3.deleteObject(deleteParams, (err, data) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(data);
+    });
+  });
+}
 
 exports.updateCategory = async (req, res) => {
   try {
@@ -150,7 +156,7 @@ exports.updateCategory = async (req, res) => {
 
     // Check if recipes were updated (optional, could remove if not needed)
     if (recipesUpdateResult.nModified === 0) {
-      console.log('No recipes were updated');  // Log for information, may not be an error
+
     }
 
     res.status(200).json({ message: 'Category and associated recipes updated successfully' });
@@ -189,14 +195,14 @@ exports.deleteCategory = async (req, res) => {
           recipe.categoryColor = defaultCategory.color;
           recipe.categoryFont = defaultCategory.font;
           recipe.categoryName = defaultCategory.name;
-         
+
           await recipe.save();
           // Push recipe ID into the default category's recipes array
           defaultCategory.recipes.push(recipe._id);
-         
+
           await defaultCategory.save();
         } else {
-  
+
         }
       }
     }
@@ -206,7 +212,7 @@ exports.deleteCategory = async (req, res) => {
 
     res.status(200).json({ message: 'Category deleted successfully' });
   } catch (error) {
- 
+
     res.status(500).json({ message: 'Internal server error' });
   }
 };

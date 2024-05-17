@@ -8,12 +8,16 @@ const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
   changeCredentials, getPublicUserProfile, getUsersByPage, addFridgeItem, getFridgeItems, updateFridgeItem, deleteFridgeItem,sendFollowRequest,rejectFollowRequest,followUserBack,unfollowUser } = require('./controllers/userController');
 const { saveCategory, getAllCategories, getFixedCategories, getCategoriesByPage, updateCategory, deleteCategory,uploadCategoryImage } = require('./controllers/categoryController');
 const { saveRecipe, uploadRecipeImage, getAllRecipes,
-  likeRecipe, dislikeRecipe, updateRecipe, deleteRecipe,
+  recommendRecipe, unRecommendRecipe, updateRecipe, deleteRecipe,
   getUserPublicRecipesByPage, getRecipesByCategory
-  , getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName,getTopThreeRecipes } = require('./controllers/recipeController');
+  , getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName,getTopThreeRecipes, rateRecipe } = require('./controllers/recipeController');
 
-const { saveWeeklyMenu, getWeeklyMenusByPage, getWeeklyMenusByPageAndUser, getWeeklyMenusFixedLength, updateWeeklyMenu } = require('./controllers/mealController');
+const { saveWeeklyMenu, getWeeklyMenusByPage, getWeeklyMenusByPageAndUser, getWeeklyMenusFixedLength, updateWeeklyMenu,removeFromWeeklyMenu } = require('./controllers/mealController');
 const { createComment,getComments, updateComment, deleteComment } = require('./controllers/commentController');
+
+const { createWikiFood, updateWikiFood, deleteWikiFood, searchWikiFoodByTitle, getWikiFoodsByPage } = require('./controllers/wikiFoodController');
+
+
 
 
 const app = express();
@@ -43,7 +47,7 @@ mongoose.connect('mongodb://localhost:27017/foodryp')
   });
 
 const db = mongoose.connection;
-
+//User Section
 app.get('/api/allUsers', getAllUsers);
 app.get('/api/getUsersByPage', getUsersByPage);
 app.post('/api/register', registerUser);
@@ -64,7 +68,7 @@ app.post('/api/rejectFollowRequest', rejectFollowRequest);
 app.post('/api/followUserBack', followUserBack);
 app.post('/api/unfollowUser/', unfollowUser);
 
-
+//Category Section
 app.post('/api/saveCategory/', saveCategory);
 app.post('/api/updateCategory/:categoryId', updateCategory);
 app.get('/api/categories/', getAllCategories);
@@ -73,13 +77,13 @@ app.get('/api/categories/getFixedCategories', getFixedCategories);
 app.get('/api/getCategoriesByPage/', getCategoriesByPage);
 app.delete('/api/deleteCategory/:categoryId', deleteCategory);
 
-
+//Recipe Section
 
 app.post('/api/saveRecipe/', saveRecipe);
 app.post('/api/uploadRecipeImage', uploadRecipeImage);
 app.get('/api/recipes/', getAllRecipes);
-app.post('/api/recipe/likeRecipe', likeRecipe);
-app.post('/api/recipe/dislikeRecipe', dislikeRecipe);
+app.post('/api/recipe/recommendRecipe', recommendRecipe);
+app.post('/api/recipe/unRecommendRecipe', unRecommendRecipe);
 app.put('/api/updateRecipe/:recipeId', updateRecipe);
 app.delete('/api/deleteRecipe/:recipeId', deleteRecipe);
 app.get('/api/getRecipesByCategory/:categoryName', getRecipesByCategory);
@@ -89,21 +93,35 @@ app.get('/api/getUserRecipesByPage/:userId', getUserRecipesByPage);
 app.get('/api/getUserPublicRecipes/:username', getUserPublicRecipesByPage);
 app.get('/api/searchRecipesByName', searchRecipesByName);
 app.get('/api/getTopThreeRecipes', getTopThreeRecipes);
+app.post('/api/rateRecipe', rateRecipe);
+
+
+//WeeklyMenu Section
 
 app.post('/api/saveWeeklyMenu', saveWeeklyMenu);
 app.get('/api/getWeeklyMenusByPage/', getWeeklyMenusByPage);
 app.get('/api/getWeeklyMenusByPageAndUser', getWeeklyMenusByPageAndUser);
 app.get('/api/getWeeklyMenusFixedLength', getWeeklyMenusFixedLength);
 app.put('/api/updateWeeklyMenu', updateWeeklyMenu);
+app.delete('/api/removeFromWeeklyMenu/:weeklyMenuId', removeFromWeeklyMenu);
 
 
 
-//Comement Section
-// Using authenticate middleware on protected routes
+//Comment Section
+// Use authenticate middleware on protected routes
 app.post('/api/createComment', createComment);
 app.get('/api/getComments/:recipeId', getComments);
 app.put('/api/updateComment/:commentId', updateComment);
 app.delete('/api/deleteComment/:commentId', deleteComment);
+
+
+
+//WikiFood Section
+app.post('/api/createWikiFood', createWikiFood);
+app.put('/api/updateWikiFood/:id', updateWikiFood);
+app.delete('/api/deleteWikiFood/:id', deleteWikiFood);
+app.get('/api/searchWikiFoodByTitle', searchWikiFoodByTitle);
+app.get('/api/getWikiFoodsByPage', getWikiFoodsByPage);
 
 // Start the server
 app.listen(port, () => {

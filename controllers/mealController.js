@@ -200,3 +200,38 @@ exports.updateWeeklyMenu = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
+
+
+
+exports.removeFromWeeklyMenu = async (req, res) => {
+    try {
+        const { weeklyMenuId } = req.params;
+        const { userId, recipeIds } = req.body;
+
+        // Find the meal to ensure it exists
+        const weeklyMenu = await Meal.findById(weeklyMenuId);
+
+        if (!weeklyMenu) {
+            return res.status(404).json({ message: 'Weekly menu not found' });
+        }
+
+        // Iterate over each recipe ID and remove the meal ID from the recipe
+        for (const recipeId of recipeIds) {
+            await Recipe.findByIdAndUpdate(recipeId, { $pull: { meal: weeklyMenuId } });
+        }
+
+        // Remove meal ID from user's weeklyMenu array
+        await User.findByIdAndUpdate(userId, { $pull: { mealId: weeklyMenuId } });
+
+        // Delete the meal document
+        await Meal.findByIdAndDelete(weeklyMenuId);
+
+        res.status(200).json({ message: 'Weekly menu removed successfully' });
+    } catch (error) {
+        console.error('Error removing weekly menu:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+

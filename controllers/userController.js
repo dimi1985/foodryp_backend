@@ -10,8 +10,8 @@ const fs = require('fs');
 
 const s3 = new aws.S3({
   endpoint: 'http://localhost:9000', // Simplified endpoint setting
-  accessKeyId: '2psXwme54l3CTbmmco9h',
-  secretAccessKey: 'GefoUhDVl6Py7vnOGzxg3bSBDR0Tl4FeKRpzTjTt',
+  accessKeyId: 'qHs9NZ1FbCZQNmfllG8L',
+  secretAccessKey: 'coKQudDRlykMqQxIQrTWEC0aQwxOD8dojxZQAYDs',
   s3ForcePathStyle: true, // needed with MinIO
   signatureVersion: 'v4'
 });
@@ -34,7 +34,7 @@ const upload = multer({
 
 exports.registerUser = async (req, res) => {
   try {
-    const { username, email, password, gender, profileImage, memberSince, role, recipes, mealId, likedRecipes,
+    const { username, email, password, gender, profileImage, memberSince, role, recipes, mealId, recommendedRecipes,
       followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled,commentId, } = req.body;
 
     const existingUser = await User.findOne({ email });
@@ -46,7 +46,7 @@ exports.registerUser = async (req, res) => {
 
     const newUser = new User({
       username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(req.body.memberSince),
-      role, recipes, mealId, likedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled,commentId
+      role, recipes, mealId, recommendedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled,commentId
     });
     await newUser.save();
 
