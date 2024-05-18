@@ -47,8 +47,11 @@ exports.deleteWikiFood = async (req, res) => {
 exports.searchWikiFoodByTitle = async (req, res) => {
     try {
         const query = req.query.query || '';
-        const regex = new RegExp(query, 'i'); // 'i' makes it case-insensitive
+        if (!query.trim()) {
+            return res.status(400).json({ message: 'Empty query provided' });
+        }
 
+        const regex = new RegExp(query, 'i'); // 'i' makes it case-insensitive
         const wikifood = await Wikifood.findOne({ title: { $regex: regex } });
 
         console.log('The word got from Flutter is:', query);
@@ -69,6 +72,7 @@ exports.searchWikiFoodByTitle = async (req, res) => {
         });
     }
 };
+
 
 
 exports.getWikiFoodsByPage = async (req, res) => {
