@@ -35,7 +35,7 @@ exports.saveRecipe = async (req, res) => {
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal ,commentId, isForDiet, isForVegetarians,rating,ratingCount,} = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal ,commentId, isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices} = req.body;
 
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
@@ -46,7 +46,7 @@ exports.saveRecipe = async (req, res) => {
     const newRecipe = new Recipe({
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty,
       username, useImage, userId, dateCreated, description, recipeImage,
-      instructions, categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal,commentId,isForDiet, isForVegetarians,rating,ratingCount,
+      instructions, categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal,commentId,isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices
     });
 
     await newRecipe.save();
@@ -136,7 +136,7 @@ exports.updateRecipe = async (req, res) => {
     
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId,isForDiet, isForVegetarians,rating,ratingCount, } = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId,isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices } = req.body;
 
     // First, find the current recipe to check the existing category ID
     const existingRecipe = await Recipe.findById(recipeId);
@@ -150,7 +150,7 @@ exports.updateRecipe = async (req, res) => {
     const updateFields = {
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId,isForDiet, isForVegetarians,rating,ratingCount,
+      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId,isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices
     };
 
     // Check if the recipe exists and update it
@@ -288,13 +288,25 @@ exports.deleteRecipe = async (req, res) => {
     }
 
     // Remove recipe ID from users' likedRecipes array
-    await User.updateMany({ recommendedRecipes: recipeId }, { $pull: { recommendedRecipes: recipeId } });
+    await User.updateMany(
+      { recommendedRecipes: recipeId },
+      { $pull: { recommendedRecipes: recipeId } }
+    );
 
-    // Remove recipe ID from user's recipes array
-    await User.findByIdAndUpdate(userId, { $pull: { recipes: recipeId } });
+    // Remove recipe ID from user's recipes array and delete associated ratings
+    await User.updateOne(
+      { _id: userId },
+      {
+        $pull: { recipes: recipeId },
+        $pull: { ratings: { recipe: recipeId } } // Corrected to match the 'recipe' field
+      }
+    );
 
     // Remove recipe ID from the category
-    await Category.updateMany({ recipes: recipeId }, { $pull: { recipes: recipeId } });
+    await Category.updateMany(
+      { recipes: recipeId },
+      { $pull: { recipes: recipeId } }
+    );
 
     // Delete the recipe image file from the bucket
     if (recipe.recipeImage) {
@@ -324,6 +336,7 @@ exports.deleteRecipe = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 exports.getUserRecipesByPage = async (req, res) => {
   try {
@@ -519,7 +532,24 @@ exports.rateRecipe = async (req, res) => {
   }
 };
 
+exports.getFollowingUsersRecipes = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const user = await User.findById(userId).populate('following');
 
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const followingUserIds = user.following.map((following) => following._id);
+    const recipes = await Recipe.find({ userId: { $in: followingUserIds } })
+      .sort({ dateCreated: -1 }); // Sort by creation date in descending order
+
+    res.status(200).json(recipes);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching following recipes', error });
+  }
+};
 
 
 

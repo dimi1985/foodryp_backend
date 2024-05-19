@@ -74,8 +74,12 @@ const recipeSchema = new mongoose.Schema({
   commentId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
   isForDiet: { type: Boolean, default: false },
   isForVegetarians: { type: Boolean, default: false },
-  rating: { type: Number, default: 0 }, // Added for storing average rating
-  ratingCount: { type: Number, default: 0 } // Added for storing count of ratings
+  rating: { type: Number, default: 0 }, 
+  ratingCount: { type: Number, default: 0 },
+  cookingAdvices: {
+    type: [],
+    required: true,
+  },
 });
 
 recipeSchema.index({ recipeTitle: 'text', description: 'text' });

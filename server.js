@@ -5,12 +5,12 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
   getAllUsers, updateUserRole, deleteUser,
-  changeCredentials, getPublicUserProfile, getUsersByPage, addFridgeItem, getFridgeItems, updateFridgeItem, deleteFridgeItem,sendFollowRequest,rejectFollowRequest,followUserBack,unfollowUser } = require('./controllers/userController');
+  changeCredentials, getPublicUserProfile, getUsersByPage, addFridgeItem, getFridgeItems, updateFridgeItem, deleteFridgeItem,sendFollowRequest,rejectFollowRequest,followUserBack,unfollowUser,acceptFollowRequest } = require('./controllers/userController');
 const { saveCategory, getAllCategories, getFixedCategories, getCategoriesByPage, updateCategory, deleteCategory,uploadCategoryImage } = require('./controllers/categoryController');
 const { saveRecipe, uploadRecipeImage, getAllRecipes,
   recommendRecipe, unRecommendRecipe, updateRecipe, deleteRecipe,
   getUserPublicRecipesByPage, getRecipesByCategory
-  , getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName,getTopThreeRecipes, rateRecipe } = require('./controllers/recipeController');
+  , getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName,getTopThreeRecipes, rateRecipe,getFollowingUsersRecipes } = require('./controllers/recipeController');
 
 const { saveWeeklyMenu, getWeeklyMenusByPage, getWeeklyMenusByPageAndUser, getWeeklyMenusFixedLength, updateWeeklyMenu,removeFromWeeklyMenu } = require('./controllers/mealController');
 const { createComment,getComments, updateComment, deleteComment } = require('./controllers/commentController');
@@ -67,6 +67,7 @@ app.post('/api/sendFollowRequest', sendFollowRequest);
 app.post('/api/rejectFollowRequest', rejectFollowRequest);
 app.post('/api/followUserBack', followUserBack);
 app.post('/api/unfollowUser/', unfollowUser);
+app.post('/api/acceptFollowRequest/', acceptFollowRequest);
 
 //Category Section
 app.post('/api/saveCategory/', saveCategory);
@@ -94,6 +95,7 @@ app.get('/api/getUserPublicRecipes/:username', getUserPublicRecipesByPage);
 app.get('/api/searchRecipesByName', searchRecipesByName);
 app.get('/api/getTopThreeRecipes', getTopThreeRecipes);
 app.post('/api/rateRecipe', rateRecipe);
+app.get('/api/getFollowingUsersRecipes/:userId', getFollowingUsersRecipes);
 
 
 //WeeklyMenu Section

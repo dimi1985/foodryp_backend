@@ -54,10 +54,7 @@ exports.searchWikiFoodByTitle = async (req, res) => {
         const regex = new RegExp(query, 'i'); // 'i' makes it case-insensitive
         const wikifood = await Wikifood.findOne({ title: { $regex: regex } });
 
-        console.log('The word got from Flutter is:', query);
-        console.log('Regex is:', regex);
-        console.log('Found:', wikifood);
-
+    
         if (wikifood) {
             res.json({ wikifood });
         } else {

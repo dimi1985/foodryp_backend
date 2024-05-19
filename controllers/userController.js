@@ -35,7 +35,7 @@ const upload = multer({
 exports.registerUser = async (req, res) => {
   try {
     const { username, email, password, gender, profileImage, memberSince, role, recipes, mealId, recommendedRecipes,
-      followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled,commentId, } = req.body;
+      followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId, } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -46,7 +46,7 @@ exports.registerUser = async (req, res) => {
 
     const newUser = new User({
       username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(req.body.memberSince),
-      role, recipes, mealId, recommendedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled,commentId
+      role, recipes, mealId, recommendedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId
     });
     await newUser.save();
 
@@ -121,20 +121,20 @@ exports.uploadProfilePicture = async (req, res) => {
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
-     
+
       if (user.profileImage) {
         console.log('Retrieved user profile picture:', user.profileImage);
         const key = user.profileImage.replace('http://localhost:9000/server/', '');
         const encodedKey = decodeURIComponent(key);
         console.log("Found file with key:", encodedKey);
-      
+
         const deleteParams = {
           Bucket: 'server',
           Key: encodedKey
         };
 
         console.log("deleteParams:", deleteParams);
-      
+
         s3.deleteObject(deleteParams, function (deleteErr, data) {
           if (deleteErr) {
             console.error('Error deleting old image file:', deleteErr);
@@ -155,7 +155,7 @@ exports.uploadProfilePicture = async (req, res) => {
         { userId: userId },
         { $set: { useImage: req.file.location } } // Use the URL provided by MinIO
       );
-      console.log('Profile picture uploaded successfully');  
+      console.log('Profile picture uploaded successfully');
       res.status(200).json({ message: 'Profile picture uploaded successfully' });
     });
   } catch (error) {
@@ -566,5 +566,39 @@ exports.unfollowUser = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
+
+exports.acceptFollowRequest = async (req, res) => {
+  const { userId, targetUserId } = req.body;
+
+  try {
+    // Add targetUserId to user's followers
+    await User.findByIdAndUpdate(userId, { $addToSet: { followers: targetUserId } });
+
+    // Add userId to target user's following
+    await User.findByIdAndUpdate(targetUserId, { $addToSet: { following: userId } });
+
+
+
+    // Add targetUserId to user's followers
+    await User.findByIdAndUpdate(targetUserId, { $addToSet: { followers: userId } });
+
+    // Add userId to target user's following
+    await User.findByIdAndUpdate(userId, { $addToSet: { following: targetUserId } });
+
+
+
+    // Remove userId from target user's followRequestsSent
+    await User.findByIdAndUpdate(targetUserId, { $pull: { followRequestsSent: userId } });
+
+    // Remove targetUserId from user's followRequestsReceived
+    await User.findByIdAndUpdate(userId, { $pull: { followRequestsReceived: targetUserId } });
+
+    res.status(200).json({ message: 'Follow request accepted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error accepting follow request', error });
+  }
+};
+
 
 
