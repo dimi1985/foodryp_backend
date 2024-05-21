@@ -34,12 +34,9 @@ exports.createComment = async (req, res) => {
 
 exports.getComments = async (req, res) => {
     const recipeId = req.params.recipeId;
-
-
     try {
         const comments = await Comment.find({ recipeId })
             .populate('userId', 'username') // Assuming 'userId' is a reference to User model and 'username' is a field inside User
-            .populate('replies') // This will populate all fields in the replies if they refer to other comments
             .sort('-dateCreated');
 
         res.status(200).json(comments); // Return the array directly for simplicity
