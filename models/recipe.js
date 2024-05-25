@@ -80,6 +80,9 @@ const recipeSchema = new mongoose.Schema({
     type: [],
     required: true,
   },
+  calories: {
+    type: String,
+  },
 });
 
 recipeSchema.index({ recipeTitle: 'text', description: 'text' });

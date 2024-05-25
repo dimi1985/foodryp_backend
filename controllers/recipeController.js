@@ -35,7 +35,7 @@ exports.saveRecipe = async (req, res) => {
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal ,commentId, isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices} = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal ,commentId, isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices,calories} = req.body;
 
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
@@ -46,7 +46,7 @@ exports.saveRecipe = async (req, res) => {
     const newRecipe = new Recipe({
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty,
       username, useImage, userId, dateCreated, description, recipeImage,
-      instructions, categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal,commentId,isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices
+      instructions, categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal,commentId,isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices,calories
     });
 
     await newRecipe.save();
@@ -136,7 +136,7 @@ exports.updateRecipe = async (req, res) => {
     
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId,isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices } = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId,isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices,calories } = req.body;
 
     // First, find the current recipe to check the existing category ID
     const existingRecipe = await Recipe.findById(recipeId);
@@ -150,7 +150,7 @@ exports.updateRecipe = async (req, res) => {
     const updateFields = {
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId,isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices
+      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId,isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices,calories
     };
 
     // Check if the recipe exists and update it
