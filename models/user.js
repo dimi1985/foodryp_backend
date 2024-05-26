@@ -53,7 +53,8 @@ const userSchema = new mongoose.Schema({
   commentId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
   fridgeItems: [fridgeItemSchema], // Embed fridge items array
   ratings: [userRatingSchema], // Add this line to include ratings in the user schema
-  activities: [activitySchema]
+  activities: [activitySchema],
+  savedRecipes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }]
 });
 
 // Method to compare hashed password with plain text password

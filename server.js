@@ -10,7 +10,7 @@ const { saveCategory, getAllCategories, getFixedCategories, getCategoriesByPage,
 const { saveRecipe, uploadRecipeImage, getAllRecipes,
   recommendRecipe, unRecommendRecipe, updateRecipe, deleteRecipe,
   getUserPublicRecipesByPage, getRecipesByCategory
-  , getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName,getTopThreeRecipes, rateRecipe,getFollowingUsersRecipes } = require('./controllers/recipeController');
+  , getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName,getTopThreeRecipes, rateRecipe,getFollowingUsersRecipes,saveUserRecipes,getUserSavedRecipes,removeUserRecipes,getUserSavedRecipesDetails } = require('./controllers/recipeController');
 
 const { saveWeeklyMenu, getWeeklyMenusByPage, getWeeklyMenusByPageAndUser, getWeeklyMenusFixedLength, updateWeeklyMenu,removeFromWeeklyMenu } = require('./controllers/mealController');
 const { createComment,getComments, updateComment, deleteComment } = require('./controllers/commentController');
@@ -96,8 +96,10 @@ app.get('/api/searchRecipesByName', searchRecipesByName);
 app.get('/api/getTopThreeRecipes', getTopThreeRecipes);
 app.post('/api/rateRecipe', rateRecipe);
 app.get('/api/getFollowingUsersRecipes/:userId', getFollowingUsersRecipes);
-
-
+app.post('/api/saveUserRecipes/:userId', saveUserRecipes);
+app.get('/api/getUserSavedRecipes/:userId', getUserSavedRecipes);
+app.get('/api/getUserSavedRecipesDetails/:userId', getUserSavedRecipesDetails);
+app.delete('/api/removeUserRecipes/:userId', removeUserRecipes);
 //WeeklyMenu Section
 
 app.post('/api/saveWeeklyMenu', saveWeeklyMenu);

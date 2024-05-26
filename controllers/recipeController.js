@@ -5,6 +5,7 @@ const multer = require('multer');
 const aws = require('aws-sdk');
 const multerS3 = require('multer-s3');
 const path = require('path');
+const mongoose = require('mongoose');
 
 // Configure multer to handle category image uploads
 const s3 = new aws.S3({
@@ -35,7 +36,7 @@ exports.saveRecipe = async (req, res) => {
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal ,commentId, isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices,calories} = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories } = req.body;
 
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
@@ -46,7 +47,7 @@ exports.saveRecipe = async (req, res) => {
     const newRecipe = new Recipe({
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty,
       username, useImage, userId, dateCreated, description, recipeImage,
-      instructions, categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal,commentId,isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices,calories
+      instructions, categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories
     });
 
     await newRecipe.save();
@@ -96,14 +97,14 @@ exports.uploadRecipeImage = async (req, res) => {
         const key = recipe.recipeImage.replace('http://localhost:9000/server/', '');
         const encodedKey = decodeURIComponent(key);
 
-      
+
         const deleteParams = {
           Bucket: 'server',
           Key: encodedKey
         };
 
-   
-      
+
+
         s3.deleteObject(deleteParams, function (deleteErr, data) {
           if (deleteErr) {
             console.error('Error deleting old image file:', deleteErr);
@@ -133,10 +134,10 @@ exports.updateRecipe = async (req, res) => {
     const recipeId = req.params.recipeId;
 
 
-    
+
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId,isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices,calories } = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories } = req.body;
 
     // First, find the current recipe to check the existing category ID
     const existingRecipe = await Recipe.findById(recipeId);
@@ -144,13 +145,13 @@ exports.updateRecipe = async (req, res) => {
 
       return res.status(404).json({ message: 'Recipe not found' });
     }
-  
+
 
     // Update the recipe fields
     const updateFields = {
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId,isForDiet, isForVegetarians,rating,ratingCount,cookingAdvices,calories
+      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories
     };
 
     // Check if the recipe exists and update it
@@ -171,7 +172,7 @@ exports.updateRecipe = async (req, res) => {
       if (newCategory) {
         await Category.findByIdAndUpdate(categoryId, { $push: { recipes: recipeId } });
       } else {
-  
+
       }
     } else {
       // If category has not changed, just ensure it's in the category list
@@ -179,7 +180,7 @@ exports.updateRecipe = async (req, res) => {
       if (category) {
         await Category.findByIdAndUpdate(categoryId, { $addToSet: { recipes: recipeId } });
       } else {
-      
+
       }
     }
 
@@ -312,7 +313,7 @@ exports.deleteRecipe = async (req, res) => {
     if (recipe.recipeImage) {
       const key = recipe.recipeImage.replace('http://localhost:9000/server/', '');
       const encodedKey = decodeURIComponent(key);
-      
+
       const deleteParams = {
         Bucket: 'server',
         Key: encodedKey
@@ -343,12 +344,12 @@ exports.getUserRecipesByPage = async (req, res) => {
     const { userId } = req.params;
     const { page = 1, pageSize = 10 } = req.query; // Default page = 1, pageSize = 10
 
-
     // Calculate skip count based on pagination parameters
     const skipCount = (page - 1) * pageSize;
 
-    // Fetch user recipes with pagination
+    // Fetch user recipes with pagination, sorted by dateCreated in descending order
     const recipes = await Recipe.find({ userId: userId })
+      .sort({ dateCreated: -1 }) // Sort by dateCreated in descending order
       .skip(skipCount)
       .limit(parseInt(pageSize));
 
@@ -369,8 +370,9 @@ exports.getUserPublicRecipesByPage = async (req, res) => {
     // Calculate skip count based on pagination parameters
     const skipCount = (page - 1) * pageSize;
 
-    // Fetch public user recipes with pagination
+    // Fetch public user recipes with pagination, sorted by dateCreated in descending order
     const recipes = await Recipe.find({ username: username })
+      .sort({ dateCreated: -1 }) // Sort by dateCreated in descending order
       .skip(skipCount)
       .limit(parseInt(pageSize));
 
@@ -380,6 +382,7 @@ exports.getUserPublicRecipesByPage = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 exports.getRecipesByCategory = async (req, res) => {
   try {
@@ -448,8 +451,8 @@ exports.searchRecipesByName = async (req, res) => {
     };
 
     const recipes = await Recipe.find({ recipeTitle: { $regex: regex } }, null, options);
-  
-    res.json({recipes});
+
+    res.json({ recipes });
   } catch (error) {
     console.error('Search recipes error:', error);
     res.status(500).json({
@@ -481,7 +484,7 @@ exports.getTopThreeRecipes = async (req, res) => {
 // Example function to add or update a user's rating of a recipe
 exports.rateRecipe = async (req, res) => {
   const { userId, recipeId, rating } = req.body;
-  
+
   console.log('Received from Flutter:', userId, recipeId, rating);
 
   try {
@@ -551,5 +554,93 @@ exports.getFollowingUsersRecipes = async (req, res) => {
   }
 };
 
+
+
+exports.saveUserRecipes = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const { recipeId } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Add recipeId to the user's savedRecipes if it's not already there
+    if (!user.savedRecipes.includes(recipeId)) {
+      user.savedRecipes.push(recipeId);
+      await user.save();
+    }
+
+    res.status(200).json({ message: "Recipe saved successfully" });
+  } catch (error) {
+    console.error('Error saving recipe:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
+// Fetch the user's saved recipes
+exports.getUserSavedRecipes = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const user = await User.findById(userId).populate('savedRecipes');
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user.savedRecipes.map(recipe => recipe._id));
+  } catch (error) {
+    console.error('Error retrieving saved recipes:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Remove a recipe from the user's saved recipes
+exports.removeUserRecipes = async (req, res) => {
+  console.log(`Recipe Removal in Request......`);
+  try {
+    const userId = req.params.userId;
+    const { recipeId } = req.body;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if recipeId exists in savedRecipes before attempting to remove
+    const recipeIndex = user.savedRecipes.indexOf(recipeId);
+    if (recipeIndex === -1) {
+
+      return res.status(404).json({ message: "Recipe not found in saved recipes" });
+    }
+
+    // Remove recipeId from the user's savedRecipes using splice
+    user.savedRecipes.splice(recipeIndex, 1);
+    await user.save();
+
+
+    res.status(200).json({ message: "Recipe removed successfully" });
+  } catch (error) {
+    console.error('Error removing recipe:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.getUserSavedRecipesDetails = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const user = await User.findById(userId).populate('savedRecipes');
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user.savedRecipes);
+  } catch (error) {
+    console.error('Error retrieving saved recipes details:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
 
 

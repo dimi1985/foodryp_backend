@@ -35,7 +35,7 @@ const upload = multer({
 exports.registerUser = async (req, res) => {
   try {
     const { username, email, password, gender, profileImage, memberSince, role, recipes, mealId, recommendedRecipes,
-      followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId, } = req.body;
+      followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId,savedRecipes } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -46,7 +46,7 @@ exports.registerUser = async (req, res) => {
 
     const newUser = new User({
       username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(req.body.memberSince),
-      role, recipes, mealId, recommendedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId
+      role, recipes, mealId, recommendedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId,savedRecipes
     });
     await newUser.save();
 
