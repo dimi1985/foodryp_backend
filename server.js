@@ -3,6 +3,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const session = require('express-session');
+
 const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
   getAllUsers, updateUserRole, deleteUser,
   changeCredentials, getPublicUserProfile, getUsersByPage, addFridgeItem, getFridgeItems, updateFridgeItem, deleteFridgeItem,sendFollowRequest,rejectFollowRequest,followUserBack,unfollowUser,acceptFollowRequest } = require('./controllers/userController');
@@ -21,6 +23,8 @@ const { createWikiFood, updateWikiFood, deleteWikiFood, searchWikiFoodByTitle, g
 
 
 const app = express();
+
+
 const port = 3000;
 
 // Middleware setup

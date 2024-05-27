@@ -1,12 +1,13 @@
 const User = require('../models/user');
 const Recipe = require('../models/recipe');
 const Category = require('../models/category');
-const bcrypt = require('bcrypt');
 const path = require('path');
 const multer = require('multer');
 const aws = require('aws-sdk');
 const multerS3 = require('multer-s3');
 const fs = require('fs');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 const s3 = new aws.S3({
   endpoint: 'http://localhost:9000', // Simplified endpoint setting
@@ -35,23 +36,34 @@ const upload = multer({
 exports.registerUser = async (req, res) => {
   try {
     const { username, email, password, gender, profileImage, memberSince, role, recipes, mealId, recommendedRecipes,
-      followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId,savedRecipes } = req.body;
+      followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId, savedRecipes } = req.body;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+    const existingUserByEmail = await User.findOne({ email });
+    if (existingUserByEmail) {
+      return res.status(409).json({ message: 'Email already exists' });
+    }
+
+    const existingUserByUsername = await User.findOne({ username });
+    if (existingUserByUsername) {
+      return res.status(409).json({ message: 'Username already exists' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
-      username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(req.body.memberSince),
-      role, recipes, mealId, recommendedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId,savedRecipes
+      username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(memberSince),
+      role, recipes, mealId, recommendedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId, savedRecipes
     });
     await newUser.save();
 
-    res.status(201).json({ message: 'User registered successfully', userId: newUser._id });
-    console.error('Send  registerUser userId:', newUser._id);
+    // Generate token
+    const token = jwt.sign({ userId: newUser._id }, 'THCR93e9pAQd', { expiresIn: '1h' });
+
+    // Save token to user document
+    newUser.token = token;
+    await newUser.save();
+
+    res.status(201).json({ message: 'User registered successfully', userId: newUser._id, token });
   } catch (error) {
     console.error('Error registering user:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -63,27 +75,43 @@ exports.loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user || !(await user.isValidPassword(password))) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    res.status(200).json({ message: 'Login successful', userId: user._id });
-    console.error('Send loginUser  userId:', user._id);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    // Generate token
+    const token = jwt.sign({ userId: user._id }, 'THCR93e9pAQd', { expiresIn: '1h' });
+
+    // Save token to user document
+    user.token = token;
+    await user.save();
+
+    res.status(200).json({ message: 'Login successful', userId: user._id, token });
   } catch (error) {
     console.error('Error logging in user:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
-
-
-
 exports.getUserProfile = async (req, res) => {
-  const userId = req.params.userId;
-
   try {
-    // Check if userId is provided
-    if (!userId && userId != null) {
+    // Extract the token from the request headers
+    const token = req.headers.authorization.split(' ')[1]; // Assuming the token is sent in the format: Bearer <token>
+
+    // Verify the token
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); 
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
+    // Check if userId is provided and is not null or empty
+    const userId = req.params.userId;
+    if (!userId || userId.trim() === '') {
       return res.status(400).json({ message: 'User ID is required' });
     }
 
@@ -91,20 +119,35 @@ exports.getUserProfile = async (req, res) => {
     const userProfile = await User.findById(userId).select('-password');
 
     // Check if userProfile is found
-    if (!userProfile) {
+    if (userProfile) {
+      // Send user profile as JSON response
+      return res.status(200).json(userProfile);
+    } else {
       return res.status(404).json({ message: 'User not found' });
     }
-
-    // Send user profile as JSON response
-    res.status(200).json(userProfile);
   } catch (error) {
-    return null;
+    // Handle token verification errors
+    console.error('Error retrieving user profile:', error);
+    return res.status(401).json({ message: 'Unauthorized' });
   }
 };
 
 
+
 exports.uploadProfilePicture = async (req, res) => {
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization;
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     upload.single('profilePicture')(req, res, async (err) => {
       if (err) {
         console.error('Error uploading profile picture:', err);
@@ -116,45 +159,71 @@ exports.uploadProfilePicture = async (req, res) => {
       }
 
       const userId = req.body.userId;
-      let user = await User.findById(userId);
+
+      // Verify that the provided userId matches the userId in the decoded token
+      if (userId !== decodedToken.userId) {
+        return res.status(403).json({ message: 'Forbidden: User ID does not match token' });
+      }
+
+      // Find the user in the database
+      let user;
+      try {
+        user = await User.findById(userId);
+      } catch (error) {
+        console.error('Error finding user:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+      }
 
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
 
+      // Delete the old profile picture from storage if it exists
       if (user.profileImage) {
-        console.log('Retrieved user profile picture:', user.profileImage);
-        const key = user.profileImage.replace('http://localhost:9000/server/', '');
-        const encodedKey = decodeURIComponent(key);
-        console.log("Found file with key:", encodedKey);
+        try {
+          const key = user.profileImage.replace('http://localhost:9000/server/', '');
+          const encodedKey = decodeURIComponent(key);
+          console.log("Found file with key:", encodedKey);
 
-        const deleteParams = {
-          Bucket: 'server',
-          Key: encodedKey
-        };
+          const deleteParams = {
+            Bucket: 'server',
+            Key: encodedKey
+          };
 
-        console.log("deleteParams:", deleteParams);
-
-        s3.deleteObject(deleteParams, function (deleteErr, data) {
-          if (deleteErr) {
-            console.error('Error deleting old image file:', deleteErr);
-          } else {
-            console.log('File deleted successfully', data);
-          }
-        });
+          s3.deleteObject(deleteParams, function (deleteErr, data) {
+            if (deleteErr) {
+              console.error('Error deleting old image file:', deleteErr);
+            } else {
+              console.log('File deleted successfully', data);
+            }
+          });
+        } catch (error) {
+          console.error('Error deleting old image file:', error);
+        }
       }
 
       // Update the user document with the new profile picture URL
-      await User.updateOne(
-        { _id: userId },
-        { $set: { profileImage: req.file.location } } // Use the URL provided by MinIO
-      );
+      try {
+        await User.updateOne(
+          { _id: userId },
+          { $set: { profileImage: req.file.location } } // Use the URL provided by MinIO
+        );
+      } catch (error) {
+        console.error('Error updating user profile picture:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+      }
 
       // Update the recipe documents with the new profile picture URL
-      await Recipe.updateMany(
-        { userId: userId },
-        { $set: { useImage: req.file.location } } // Use the URL provided by MinIO
-      );
+      try {
+        await Recipe.updateMany(
+          { userId: userId },
+          { $set: { useImage: req.file.location } } // Use the URL provided by MinIO
+        );
+      } catch (error) {
+        console.error('Error updating user recipes with new profile picture URL:', error);
+        // This error is not critical, so we continue the request
+      }
+
       console.log('Profile picture uploaded successfully');
       res.status(200).json({ message: 'Profile picture uploaded successfully' });
     });
@@ -163,6 +232,7 @@ exports.uploadProfilePicture = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 
 //Admin Methods!
@@ -241,18 +311,36 @@ exports.updateUserRole = async (req, res) => {
 
 exports.deleteUser = async (req, res) => {
   try {
-    const userId = req.params.userId;
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization;
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
 
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
+    // Extract user ID from the decoded token
+    const userId = decodedToken.userId;
+
+    // Fetch user details from the database
     const user = await User.findById(userId);
 
+    // Check if the user exists
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
     // 2. Delete the associated profile image (if exists)
-    if (user && user.profilePicture) {
+    if (user.profilePicture) {
       try {
         // Delete the old profile image file
         fs.unlinkSync(user.profilePicture);
       } catch (deleteError) {
-
+        console.error('Error deleting old profile image file:', deleteError);
         // Handle error deleting old profile image file
       }
     }
@@ -265,7 +353,7 @@ exports.deleteUser = async (req, res) => {
         try {
           fs.unlinkSync(recipe.recipeImage);
         } catch (deleteError) {
-
+          console.error('Error deleting recipe image:', deleteError);
           // Handle error deleting recipe image
         }
       }
@@ -285,12 +373,25 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
+
 exports.changeCredentials = async (req, res) => {
-  const userId = req.params.userId;
-
-  const { oldPassword, newUsername, newEmail, newPassword } = req.body;
-
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization;
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
+    const userId = decodedToken.userId;
+
+    const { oldPassword, newUsername, newEmail, newPassword } = req.body;
+
     // Fetch the user from the database
     const user = await User.findById(userId);
     if (!user) {
@@ -323,6 +424,7 @@ exports.changeCredentials = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
 
 exports.getPublicUserProfile = async (req, res) => {
   try {
