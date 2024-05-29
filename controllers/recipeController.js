@@ -4,9 +4,7 @@ const User = require('../models/user');
 const multer = require('multer');
 const aws = require('aws-sdk');
 const multerS3 = require('multer-s3');
-const path = require('path');
-const mongoose = require('mongoose');
-
+const jwt = require('jsonwebtoken');
 // Configure multer to handle category image uploads
 const s3 = new aws.S3({
   endpoint: 'http://localhost:9000', // Simplified endpoint setting
@@ -33,6 +31,19 @@ const upload = multer({
 // Method to save category with all fields and upload image (merged)
 exports.saveRecipe = async (req, res) => {
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    
+
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
@@ -40,7 +51,6 @@ exports.saveRecipe = async (req, res) => {
 
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
-
       return res.status(400).json({ message: 'Recipe already exists' });
     }
 
@@ -52,25 +62,39 @@ exports.saveRecipe = async (req, res) => {
 
     await newRecipe.save();
 
-
     // Update category recipes field
     await Category.findByIdAndUpdate(categoryId, { $push: { recipes: newRecipe._id } });
 
     // Update user recipes field
     await User.findByIdAndUpdate(userId, { $push: { recipes: newRecipe._id } });
 
-
     res.status(201).json({ message: 'Recipe saved successfully', recipeId: newRecipe._id });
   } catch (error) {
     console.error('Error saving recipe:', error);
+    // Log more information about the error
+    console.log('Token verification error:', error.message);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
 
 
+
+
 exports.uploadRecipeImage = async (req, res) => {
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     // Handling file upload with multer-s3
     const fileUpload = upload.single('recipeImage');
     fileUpload(req, res, async (err) => {
@@ -80,7 +104,6 @@ exports.uploadRecipeImage = async (req, res) => {
       }
 
       if (!req.file) {
-
         return res.status(400).json({ message: 'No file uploaded' });
       }
 
@@ -93,23 +116,15 @@ exports.uploadRecipeImage = async (req, res) => {
 
       // Delete the old image if it exists in the bucket
       if (recipe.recipeImage) {
-
         const key = recipe.recipeImage.replace('http://localhost:9000/server/', '');
         const encodedKey = decodeURIComponent(key);
-
-
         const deleteParams = {
           Bucket: 'server',
           Key: encodedKey
         };
-
-
-
         s3.deleteObject(deleteParams, function (deleteErr, data) {
           if (deleteErr) {
             console.error('Error deleting old image file:', deleteErr);
-          } else {
-
           }
         });
       }
@@ -129,11 +144,22 @@ exports.uploadRecipeImage = async (req, res) => {
 };
 
 
+
 exports.updateRecipe = async (req, res) => {
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     const recipeId = req.params.recipeId;
-
-
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
@@ -142,10 +168,8 @@ exports.updateRecipe = async (req, res) => {
     // First, find the current recipe to check the existing category ID
     const existingRecipe = await Recipe.findById(recipeId);
     if (!existingRecipe) {
-
       return res.status(404).json({ message: 'Recipe not found' });
     }
-
 
     // Update the recipe fields
     const updateFields = {
@@ -163,24 +187,18 @@ exports.updateRecipe = async (req, res) => {
       const oldCategory = await Category.findById(existingRecipe.categoryId);
       if (oldCategory) {
         await Category.findByIdAndUpdate(existingRecipe.categoryId, { $pull: { recipes: recipeId } });
-      } else {
-
       }
 
       // Add recipe to the new category
       const newCategory = await Category.findById(categoryId);
       if (newCategory) {
         await Category.findByIdAndUpdate(categoryId, { $push: { recipes: recipeId } });
-      } else {
-
       }
     } else {
       // If category has not changed, just ensure it's in the category list
       const category = await Category.findById(categoryId);
       if (category) {
         await Category.findByIdAndUpdate(categoryId, { $addToSet: { recipes: recipeId } });
-      } else {
-
       }
     }
 
@@ -192,8 +210,6 @@ exports.updateRecipe = async (req, res) => {
           { _id: defaultCategory._id },
           { $pull: { recipes: recipeId } }
         );
-      } else {
-
       }
     }
 
@@ -207,6 +223,7 @@ exports.updateRecipe = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 
 exports.getAllRecipes = async (req, res) => {
@@ -278,6 +295,18 @@ exports.unRecommendRecipe = async (req, res) => {
 
 exports.deleteRecipe = async (req, res) => {
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     const { recipeId } = req.params;
     const { userId } = req.body;
 
@@ -286,6 +315,11 @@ exports.deleteRecipe = async (req, res) => {
 
     if (!recipe) {
       return res.status(404).json({ message: 'Recipe not found' });
+    }
+
+    // Check if the authenticated user is authorized to delete the recipe
+    if (userId !== decodedToken.userId) {
+      return res.status(403).json({ message: 'Forbidden: You are not authorized to delete this recipe' });
     }
 
     // Remove recipe ID from users' likedRecipes array
@@ -339,8 +373,21 @@ exports.deleteRecipe = async (req, res) => {
 };
 
 
+
 exports.getUserRecipesByPage = async (req, res) => {
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     const { userId } = req.params;
     const { page = 1, pageSize = 10 } = req.query; // Default page = 1, pageSize = 10
 
@@ -359,6 +406,7 @@ exports.getUserRecipesByPage = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 
 
@@ -483,11 +531,23 @@ exports.getTopThreeRecipes = async (req, res) => {
 
 // Example function to add or update a user's rating of a recipe
 exports.rateRecipe = async (req, res) => {
-  const { userId, recipeId, rating } = req.body;
-
-  console.log('Received from Flutter:', userId, recipeId, rating);
-
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
+    const { userId, recipeId, rating } = req.body;
+
+    console.log('Received from Flutter:', userId, recipeId, rating);
+
     // Check if the user has already rated this recipe
     const user = await User.findOne({ _id: userId });
     const userHasRated = user && user.ratings.some(r => r.recipe.toString() === recipeId.toString());
@@ -535,9 +595,23 @@ exports.rateRecipe = async (req, res) => {
   }
 };
 
+
 exports.getFollowingUsersRecipes = async (req, res) => {
   try {
     const userId = req.params.userId;
+
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+    if (!decodedToken.userId || decodedToken.userId !== userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     const user = await User.findById(userId).populate('following');
 
     if (!user) {
@@ -556,10 +630,23 @@ exports.getFollowingUsersRecipes = async (req, res) => {
 
 
 
+
 exports.saveUserRecipes = async (req, res) => {
   try {
     const userId = req.params.userId;
     const { recipeId } = req.body;
+
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid and matches the requested user's ID
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+    if (!decodedToken.userId || decodedToken.userId !== userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
 
     const user = await User.findById(userId);
     if (!user) {
@@ -585,6 +672,18 @@ exports.getUserSavedRecipes = async (req, res) => {
   try {
     const userId = req.params.userId;
 
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid and matches the requested user's ID
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+    if (!decodedToken.userId || decodedToken.userId !== userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     const user = await User.findById(userId).populate('savedRecipes');
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -597,12 +696,26 @@ exports.getUserSavedRecipes = async (req, res) => {
   }
 };
 
+
 // Remove a recipe from the user's saved recipes
 exports.removeUserRecipes = async (req, res) => {
-  console.log(`Recipe Removal in Request......`);
+
   try {
     const userId = req.params.userId;
     const { recipeId } = req.body;
+
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid and matches the requested user's ID
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+    if (!decodedToken.userId || decodedToken.userId !== userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -611,14 +724,12 @@ exports.removeUserRecipes = async (req, res) => {
     // Check if recipeId exists in savedRecipes before attempting to remove
     const recipeIndex = user.savedRecipes.indexOf(recipeId);
     if (recipeIndex === -1) {
-
       return res.status(404).json({ message: "Recipe not found in saved recipes" });
     }
 
     // Remove recipeId from the user's savedRecipes using splice
     user.savedRecipes.splice(recipeIndex, 1);
     await user.save();
-
 
     res.status(200).json({ message: "Recipe removed successfully" });
   } catch (error) {
@@ -627,9 +738,22 @@ exports.removeUserRecipes = async (req, res) => {
   }
 };
 
+
 exports.getUserSavedRecipesDetails = async (req, res) => {
   try {
     const userId = req.params.userId;
+
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid and matches the requested user's ID
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+    if (!decodedToken.userId || decodedToken.userId !== userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
 
     const user = await User.findById(userId).populate('savedRecipes');
     if (!user) {
@@ -642,5 +766,6 @@ exports.getUserSavedRecipesDetails = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 

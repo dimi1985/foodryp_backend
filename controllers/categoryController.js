@@ -31,29 +31,30 @@ const upload = multer({
 // Method to save category with all fields and upload image (merged)
 exports.saveCategory = async (req, res) => {
   try {
-    const { name, font, color, categoryImage, recipes, isForDiet, isForVegetarians } = req.body;
+    const { name, font, color, categoryImage, recipes, isForDiet, isForVegetarians, userRole } = req.body;
 
+    // Check if the userRole is 'admin'
+    if (userRole === 'admin') {
+      const existingCategory = await Category.findOne({ name });
 
-    const existingCategory = await Category.findOne({ name });
+      if (existingCategory) {
+        return res.status(400).json({ message: 'Category already exists' });
+      }
 
+      const newCategory = new Category({ name, font, color, categoryImage, recipes, isForDiet, isForVegetarians });
 
-    if (existingCategory) {
+      await newCategory.save();
 
-      return res.status(400).json({ message: 'Category already exists' });
+      return res.status(201).json({ message: 'Category saved successfully', categoryId: newCategory._id });
+    } else {
+      return res.status(403).json({ message: 'Forbidden: User is not an admin' });
     }
-
-    const newCategory = new Category({ name, font, color, categoryImage, recipes, isForDiet, isForVegetarians });
-
-
-    await newCategory.save();
-
-
-    res.status(201).json({ message: 'Category saved successfully', categoryId: newCategory._id });
   } catch (error) {
     console.error('Error saving category:', error); // Improved error logging
-    res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 
 

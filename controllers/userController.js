@@ -137,7 +137,7 @@ exports.getUserProfile = async (req, res) => {
 exports.uploadProfilePicture = async (req, res) => {
   try {
     // Check if a valid token is provided in the request headers
-    const token = req.headers.authorization;
+    const token = req.headers.authorization.split(' ')[1];
     if (!token) {
       return res.status(401).json({ message: 'Unauthorized: No token provided' });
     }
@@ -312,7 +312,7 @@ exports.updateUserRole = async (req, res) => {
 exports.deleteUser = async (req, res) => {
   try {
     // Check if a valid token is provided in the request headers
-    const token = req.headers.authorization;
+    const token = req.headers.authorization.split(' ')[1];
     if (!token) {
       return res.status(401).json({ message: 'Unauthorized: No token provided' });
     }
@@ -377,7 +377,7 @@ exports.deleteUser = async (req, res) => {
 exports.changeCredentials = async (req, res) => {
   try {
     // Check if a valid token is provided in the request headers
-    const token = req.headers.authorization;
+    const token = req.headers.authorization.split(' ')[1];
     if (!token) {
       return res.status(401).json({ message: 'Unauthorized: No token provided' });
     }
@@ -448,6 +448,17 @@ exports.getPublicUserProfile = async (req, res) => {
 
 exports.addFridgeItem = async (req, res) => {
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
 
     const { userId, name, category } = req.body;
     const user = await User.findById(userId);
@@ -469,6 +480,18 @@ exports.addFridgeItem = async (req, res) => {
 
 exports.getFridgeItems = async (req, res) => {
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     const userId = req.params.userId;
 
     // Validate userId
@@ -499,6 +522,18 @@ exports.updateFridgeItem = async (req, res) => {
   const { userId, oldItemName, newItem } = req.body;
 
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found." });
@@ -523,6 +558,18 @@ exports.updateFridgeItem = async (req, res) => {
 
 exports.deleteFridgeItem = async (req, res) => {
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     const { userId, itemName } = req.query; // Assuming you are sending userId and itemName as query parameters
 
     const user = await User.findById(userId);
@@ -547,8 +594,21 @@ exports.deleteFridgeItem = async (req, res) => {
 
 
 
+
 exports.sendFollowRequest = async (req, res) => {
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     const { userId, userToFollowId } = req.body;
     console.log(userId)
     console.log(userToFollowId)
@@ -581,8 +641,6 @@ exports.sendFollowRequest = async (req, res) => {
       await user.save();
     }
 
-
-
     res.status(200).json({ success: true, message: "Follow request sent" });
   } catch (error) {
     console.error('Error sending follow request:', error);
@@ -592,6 +650,18 @@ exports.sendFollowRequest = async (req, res) => {
 
 exports.rejectFollowRequest = async (req, res) => {
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     const { userId, userToRejectId } = req.body;
     console.log(userId, userToRejectId);
     const user = await User.findById(userId);
@@ -601,8 +671,6 @@ exports.rejectFollowRequest = async (req, res) => {
 
     // Remove userId from userToReject's list of received follow requests
     await User.findByIdAndUpdate(userToRejectId, { $pull: { followRequestsSent: userId } });
-
-
 
     // Add userToRejectId to user's following list
     usertoReject.following.push(userId);
@@ -619,9 +687,20 @@ exports.rejectFollowRequest = async (req, res) => {
   }
 };
 
-
 exports.followUserBack = async (req, res) => {
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     const { userId, userToFollowBackId } = req.body;
     console.log(userId, userToFollowBackId);
     const user = await User.findById(userId);
@@ -646,6 +725,18 @@ exports.followUserBack = async (req, res) => {
 
 exports.unfollowUser = async (req, res) => {
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
     const { userId, userToUnfollowId } = req.body;
 
     // Logic to unfollow user
@@ -671,9 +762,21 @@ exports.unfollowUser = async (req, res) => {
 
 
 exports.acceptFollowRequest = async (req, res) => {
-  const { userId, targetUserId } = req.body;
-
   try {
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
+    const { userId, targetUserId } = req.body;
+
     // Add targetUserId to user's followers
     await User.findByIdAndUpdate(userId, { $addToSet: { followers: targetUserId } });
 
