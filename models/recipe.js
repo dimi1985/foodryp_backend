@@ -78,7 +78,6 @@ const recipeSchema = new mongoose.Schema({
   ratingCount: { type: Number, default: 0 },
   cookingAdvices: {
     type: [],
-    required: true,
   },
   calories: {
     type: String,

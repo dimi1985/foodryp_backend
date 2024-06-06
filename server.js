@@ -108,7 +108,7 @@ app.delete('/api/removeUserRecipes/:userId', removeUserRecipes);
 
 app.post('/api/saveWeeklyMenu', saveWeeklyMenu);
 app.get('/api/getWeeklyMenusByPage/', getWeeklyMenusByPage);
-app.get('/api/getWeeklyMenusByPageAndUser', getWeeklyMenusByPageAndUser);
+app.get('/api/getWeeklyMenusByPageAndUser/:userId', getWeeklyMenusByPageAndUser);
 app.get('/api/getWeeklyMenusFixedLength', getWeeklyMenusFixedLength);
 app.put('/api/updateWeeklyMenu', updateWeeklyMenu);
 app.delete('/api/removeFromWeeklyMenu/:weeklyMenuId', removeFromWeeklyMenu);

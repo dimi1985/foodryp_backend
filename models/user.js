@@ -55,7 +55,7 @@ const userSchema = new mongoose.Schema({
   ratings: [userRatingSchema], // Add this line to include ratings in the user schema
   activities: [activitySchema],
   savedRecipes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }],
-  token: String // Store the authentication token here
+  tokens: [{ token: String }]
 });
 
 // Method to compare hashed password with plain text password

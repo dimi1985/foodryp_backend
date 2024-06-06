@@ -28,12 +28,20 @@ const upload = multer({
   })
 });
 
+const cron = require('node-cron');
+const cache = {
+  topThreeRecipes: null,
+  lastUpdated: null,
+};
+
+const cacheTTL = 7 * 24 * 60 * 60 * 1000; // One week in milliseconds
+
 // Method to save category with all fields and upload image (merged)
 exports.saveRecipe = async (req, res) => {
   try {
     // Check if a valid token is provided in the request headers
     const token = req.headers.authorization.split(' ')[1];
-    
+
 
     if (!token) {
       return res.status(401).json({ message: 'Unauthorized: No token provided' });
@@ -88,9 +96,8 @@ exports.uploadRecipeImage = async (req, res) => {
     if (!token) {
       return res.status(401).json({ message: 'Unauthorized: No token provided' });
     }
-
     // Verify the token to ensure it's valid
-    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
     if (!decodedToken.userId) {
       return res.status(401).json({ message: 'Unauthorized: Invalid token' });
     }
@@ -146,6 +153,7 @@ exports.uploadRecipeImage = async (req, res) => {
 
 
 exports.updateRecipe = async (req, res) => {
+  console.log('got here');
   try {
     // Check if a valid token is provided in the request headers
     const token = req.headers.authorization.split(' ')[1];
@@ -154,16 +162,26 @@ exports.updateRecipe = async (req, res) => {
     }
 
     // Verify the token to ensure it's valid
-    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
     if (!decodedToken.userId) {
       return res.status(401).json({ message: 'Unauthorized: Invalid token' });
     }
 
     const recipeId = req.params.recipeId;
 
-    const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
-      userId, dateCreated, description, recipeImage, instructions,
+    const { recipeTitle, ingredients, instructions, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
+      userId, dateCreated, description,
       categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories } = req.body;
+
+    console.log('got fields from client: ', recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
+      userId, dateCreated, description, instructions,
+      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories);
+
+
+
+
+
+
 
     // First, find the current recipe to check the existing category ID
     const existingRecipe = await Recipe.findById(recipeId);
@@ -174,7 +192,7 @@ exports.updateRecipe = async (req, res) => {
     // Update the recipe fields
     const updateFields = {
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
-      userId, dateCreated, description, recipeImage, instructions,
+      userId, dateCreated, description, instructions,
       categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories
     };
 
@@ -377,15 +395,27 @@ exports.deleteRecipe = async (req, res) => {
 exports.getUserRecipesByPage = async (req, res) => {
   try {
     // Check if a valid token is provided in the request headers
-    const token = req.headers.authorization.split(' ')[1];
-    if (!token) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
       return res.status(401).json({ message: 'Unauthorized: No token provided' });
     }
 
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: Malformed token' });
+    }
+
     // Verify the token to ensure it's valid
-    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
-    if (!decodedToken.userId) {
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'THCR93e9pAQd' with your actual secret key
+    } catch (err) {
+      console.error('Token verification failed:', err);
       return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token payload' });
     }
 
     const { userId } = req.params;
@@ -398,8 +428,9 @@ exports.getUserRecipesByPage = async (req, res) => {
     const recipes = await Recipe.find({ userId: userId })
       .sort({ dateCreated: -1 }) // Sort by dateCreated in descending order
       .skip(skipCount)
-      .limit(parseInt(pageSize));
+      .limit(parseInt(pageSize, 10));
 
+    console.log(recipes);
     res.status(200).json(recipes);
   } catch (error) {
     console.error('Error fetching user recipes:', error);
@@ -511,18 +542,39 @@ exports.searchRecipesByName = async (req, res) => {
   }
 };
 
+// Function to fetch and cache the top three recipes
+const fetchAndCacheTopThreeRecipes = async () => {
+  try {
+    const recipes = await Recipe.find().sort({ rating: -1, ratingCount: -1 }).limit(3);
+    cache.topThreeRecipes = recipes;
+    cache.lastUpdated = new Date();
+    console.log('Top three recipes updated:', cache.lastUpdated);
+  } catch (error) {
+    console.error('Error fetching top three recipes:', error);
+  }
+};
+
+// Schedule the job to run once a week
+cron.schedule('0 0 * * 0', fetchAndCacheTopThreeRecipes); // This schedules the job to run at midnight every Sunday
+
+// Manually run the job on server start
+fetchAndCacheTopThreeRecipes();
+
+// Endpoint to get the top three recipes
 exports.getTopThreeRecipes = async (req, res) => {
   try {
-    // Fetch the top three recipes sorted by 'rating' in descending order
-    // and then by 'ratingCount' to favor recipes with more ratings
-    const recipes = await Recipe.find().sort({ rating: -1, ratingCount: -1 }).limit(3);
+    const now = new Date();
+    const isCacheExpired = !cache.lastUpdated || (now - new Date(cache.lastUpdated)) > cacheTTL;
 
-    // Check if any recipes found
-    if (!recipes.length) {
-      return res.status(204).json({ message: 'No recipes found' }); // No Content
+    if (isCacheExpired) {
+      await fetchAndCacheTopThreeRecipes();
     }
 
-    res.status(200).json(recipes);
+    if (cache.topThreeRecipes && cache.topThreeRecipes.length) {
+      return res.status(200).json(cache.topThreeRecipes);
+    } else {
+      return res.status(204).json({ message: 'No recipes found' });
+    }
   } catch (error) {
     console.error('Error fetching top three recipes:', error);
     res.status(500).json({ message: 'Internal server error' });

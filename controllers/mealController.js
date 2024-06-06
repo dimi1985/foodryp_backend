@@ -1,22 +1,37 @@
 const Meal = require('../models/meal');
+const mongoose = require('mongoose');
+const ObjectId = mongoose.Types.ObjectId;
 const Recipe = require('../models/recipe');
 const User = require('../models/user');
 const jwt = require('jsonwebtoken');
 
 // Function to save a new weekly menu
 exports.saveWeeklyMenu = async (req, res) => {
+    console.log('Request to add a weekly meal received...');
     try {
         const { title, dayOfWeek, userId, username, userProfileImage, dateCreated, isForDiet, isMultipleDays } = req.body;
 
+        console.log('Received from Flutter: ', title, dayOfWeek, userId, username, userProfileImage, dateCreated, isForDiet, isMultipleDays);
+
         // Check if a valid token is provided in the request headers
-        const token = req.headers.authorization;
+        const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
+        console.log('Token here ? : ', token); // Log the token
         if (!token) {
+            console.log('Unauthorized: No token provided');
             return res.status(401).json({ message: 'Unauthorized: No token provided' });
         }
 
         // Verify the token to ensure it's valid and matches the requested user's ID
-        const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+        let decodedToken;
+        try {
+            decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+        } catch (error) {
+            console.log('Unauthorized: Invalid token');
+            return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+        }
+
         if (!decodedToken.userId || decodedToken.userId !== userId) {
+            console.log('Unauthorized: Invalid token');
             return res.status(401).json({ message: 'Unauthorized: Invalid token' });
         }
 
@@ -28,8 +43,11 @@ exports.saveWeeklyMenu = async (req, res) => {
             userProfileImage,
             dateCreated,
             isForDiet,
-            isMultipleDays
+            isMultipleDays,
+            dayOfWeek: [] // Initialize dayOfWeek as an empty array
         });
+
+        console.log('Creating new meal:', meal);
 
         // Iterate over each dayOfWeek
         for (const dayRecipeId of dayOfWeek) {
@@ -46,15 +64,21 @@ exports.saveWeeklyMenu = async (req, res) => {
             // Update the recipe with the meal ID
             recipe.meal.push(meal._id);
 
+            console.log(`Adding recipe ID ${dayRecipeId} to the meal and updating the recipe with the meal ID`);
+
             // Save the updated recipe
             await recipe.save();
         }
 
+        console.log('Final meal object before saving:', meal);
+
         // Save the meal to the database
         const savedMeal = await meal.save();
+        console.log('Meal saved:', savedMeal);
 
         // Save the meal ID to the user's mealId field
-        await User.findByIdAndUpdate(userId, { mealId: savedMeal._id });
+        await User.findByIdAndUpdate(userId, { $push: { mealId: savedMeal._id } });
+        console.log(`Meal ID ${savedMeal._id} added to the user's mealId`);
 
         // Respond with the saved meal data
         res.status(201).json(savedMeal);
@@ -63,7 +87,6 @@ exports.saveWeeklyMenu = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
-
 
 
 exports.getWeeklyMenusByPage = async (req, res) => {
@@ -119,19 +142,33 @@ exports.getWeeklyMenusFixedLength = async (req, res) => {
 };
 
 
+
+
 exports.getWeeklyMenusByPageAndUser = async (req, res) => {
     try {
         // Token authentication logic
-        const token = req.headers.authorization.split(' ')[1];
-        if (!token) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({ message: 'Unauthorized: No token provided' });
         }
 
+        const token = authHeader.split(' ')[1];
         const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
         const userId = decodedToken.userId;
 
-        // Your existing code to fetch weekly menus...
-        
+        const { page, pageSize } = req.query;
+        const skip = (parseInt(page) - 1) * parseInt(pageSize);
+
+        // Fetch meals for the user with pagination and populate the dayOfWeek field with recipes
+        const meals = await Meal.find({ userId })
+            .skip(skip)
+            .limit(parseInt(pageSize))
+            .populate({
+                path: 'dayOfWeek',
+                model: 'Recipe'
+            })
+            .exec();
+
         res.status(200).json(meals);
     } catch (error) {
         console.error('Error fetching weekly menus:', error);
@@ -142,6 +179,7 @@ exports.getWeeklyMenusByPageAndUser = async (req, res) => {
 
 exports.updateWeeklyMenu = async (req, res) => {
     try {
+        
         // Token authentication logic
         const token = req.headers.authorization.split(' ')[1];
         if (!token) {
@@ -149,21 +187,36 @@ exports.updateWeeklyMenu = async (req, res) => {
         }
 
         const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
-        const userId = decodedToken.userId;
+        const userId = new ObjectId(decodedToken.userId);
 
         // Request body destructuring
         const { mealId, title, oldRecipes, newRecipes, username, userProfileImage, dateCreated, isForDiet, isMultipleDays } = req.body;
-
+       
+        
         // Find the meal by ID
         const meal = await Meal.findById(mealId);
 
         // Ensure the meal exists and belongs to the user
-        if (!meal || meal.userId !== userId) {
+        if (!meal || !meal.userId.equals(userId)) {
+         
             return res.status(404).json({ message: 'Meal not found or unauthorized' });
         }
 
-        // Your existing update logic...
-        
+        // Update the meal with new data
+        meal.title = title || meal.title;
+        meal.oldRecipes = oldRecipes || meal.oldRecipes;
+        meal.newRecipes = newRecipes || meal.newRecipes;
+        meal.dayOfWeek = newRecipes.map(id => new ObjectId(id)); // Update dayOfWeek with new recipes
+        meal.username = username || meal.username;
+        meal.userProfileImage = userProfileImage || meal.userProfileImage;
+        meal.dateCreated = dateCreated || meal.dateCreated;
+        meal.isForDiet = isForDiet !== undefined ? isForDiet : meal.isForDiet;
+        meal.isMultipleDays = isMultipleDays !== undefined ? isMultipleDays : meal.isMultipleDays;
+
+        // Save the updated meal
+        const updatedMeal = await meal.save();
+       
+
         // Respond with the updated meal data
         res.status(200).json(updatedMeal);
     } catch (error) {

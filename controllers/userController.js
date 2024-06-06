@@ -35,8 +35,10 @@ const upload = multer({
 
 exports.registerUser = async (req, res) => {
   try {
-    const { username, email, password, gender, profileImage, memberSince, role, recipes, mealId, recommendedRecipes,
-      followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId, savedRecipes } = req.body;
+    const { 
+      username, email, password, gender, profileImage, memberSince, role, recipes, mealId, recommendedRecipes,
+      followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId, savedRecipes 
+    } = req.body;
 
     const existingUserByEmail = await User.findOne({ email });
     if (existingUserByEmail) {
@@ -54,13 +56,13 @@ exports.registerUser = async (req, res) => {
       username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(memberSince),
       role, recipes, mealId, recommendedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId, savedRecipes
     });
-    await newUser.save();
 
     // Generate token
-    const token = jwt.sign({ userId: newUser._id }, 'THCR93e9pAQd', { expiresIn: '1h' });
+    const token = jwt.sign({ userId: newUser._id }, 'THCR93e9pAQd', { expiresIn: '24h' });
 
-    // Save token to user document
-    newUser.token = token;
+    // Append token to user's tokens array
+    newUser.tokens = newUser.tokens || [];
+    newUser.tokens.push({ token });
     await newUser.save();
 
     res.status(201).json({ message: 'User registered successfully', userId: newUser._id, token });
@@ -85,10 +87,11 @@ exports.loginUser = async (req, res) => {
     }
 
     // Generate token
-    const token = jwt.sign({ userId: user._id }, 'THCR93e9pAQd', { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user._id }, 'THCR93e9pAQd', { expiresIn: '24h' });
 
-    // Save token to user document
-    user.token = token;
+    // Append token to user's tokens array
+    user.tokens = user.tokens || [];
+    user.tokens.push({ token });
     await user.save();
 
     res.status(200).json({ message: 'Login successful', userId: user._id, token });
@@ -100,8 +103,17 @@ exports.loginUser = async (req, res) => {
 
 exports.getUserProfile = async (req, res) => {
   try {
+    // Check if the authorization header is present
+    if (!req.headers.authorization) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
     // Extract the token from the request headers
-    const token = req.headers.authorization.split(' ')[1]; // Assuming the token is sent in the format: Bearer <token>
+    const authHeader = req.headers.authorization;
+    const token = authHeader.split(' ')[1]; // Assuming the token is sent in the format: Bearer <token>
+    
+    // Log the received token for debugging
+    console.log('Received token:', token);
 
     // Verify the token
     const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); 
@@ -126,9 +138,15 @@ exports.getUserProfile = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
   } catch (error) {
-    // Handle token verification errors
+    // Handle token verification errors specifically
+    if (error.name === 'JsonWebTokenError') {
+      console.error('JWT Error:', error.message);
+      return res.status(401).json({ message: `Unauthorized: ${error.message}` });
+    }
+
+    // Log any other errors
     console.error('Error retrieving user profile:', error);
-    return res.status(401).json({ message: 'Unauthorized' });
+    return res.status(500).json({ message: 'Internal Server Error' });
   }
 };
 
@@ -480,14 +498,24 @@ exports.addFridgeItem = async (req, res) => {
 
 exports.getFridgeItems = async (req, res) => {
   try {
-    // Check if a valid token is provided in the request headers
-    const token = req.headers.authorization.split(' ')[1];
+    // Check if the Authorization header is provided
+    if (!req.headers.authorization) {
+      return res.status(401).json({ message: 'Unauthorized: No authorization header provided' });
+    }
+
+    // Split the Authorization header to get the token
+    const tokenParts = req.headers.authorization.split(' ');
+    if (tokenParts.length !== 2 || tokenParts[0] !== 'Bearer') {
+      return res.status(401).json({ message: 'Unauthorized: Malformed authorization header' });
+    }
+
+    const token = tokenParts[1];
     if (!token) {
       return res.status(401).json({ message: 'Unauthorized: No token provided' });
     }
 
     // Verify the token to ensure it's valid
-    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'THCR93e9pAQd' with your actual secret key
     if (!decodedToken.userId) {
       return res.status(401).json({ message: 'Unauthorized: Invalid token' });
     }
@@ -516,7 +544,6 @@ exports.getFridgeItems = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
-
 
 exports.updateFridgeItem = async (req, res) => {
   const { userId, oldItemName, newItem } = req.body;
