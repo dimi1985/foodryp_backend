@@ -4,9 +4,49 @@ const Recipe = require('../models/recipe');
 const jwt = require('jsonwebtoken');
 
 
+
+function customProfanityFilter(text) {
+    // List of profane words or patterns
+    const profanityWords = ["fuck",
+        "shit",
+        "asshole",
+        "bastard",
+        "bitch",
+        "bullsh*t",
+        "cock",
+        "cunt",
+        "dick",
+        "faggot",
+        "motherfucker",
+        "nigga",
+        "pussy",
+        "slut",
+        "twat",
+        'fuckeer',
+        'fuckeer'
+    ];
+
+    // Convert text to lowercase for case-insensitive matching
+    const lowercaseText = text.toLowerCase();
+
+    // Check if any profanity words exist in the text
+    for (const profanityWord of profanityWords) {
+        if (lowercaseText.includes(profanityWord.toLowerCase())) {
+            return true; // Profanity detected
+        }
+    }
+
+    return false; // No profanity detected
+}
+
+
+
+
+// Assuming you have a custom profanity filter function called `customProfanityFilter`
+
 exports.createComment = async (req, res) => {
     try {
-        // Token authentication logic
+        // Token authentication
         const token = req.headers.authorization.split(' ')[1];
         if (!token) {
             return res.status(401).json({ message: 'Unauthorized: No token provided' });
@@ -15,8 +55,16 @@ exports.createComment = async (req, res) => {
         const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
         const userId = decodedToken.userId;
 
-        // Request body destructuring
+        // Validate request body
         const { text, recipeId, username, useImage, replies } = req.body;
+        if (!text || !recipeId || !username) {
+            return res.status(400).json({ message: 'Invalid request: Missing required fields' });
+        }
+
+        // Check for profanity using custom profanity filter
+        if (customProfanityFilter(text)) {
+            return res.status(400).json({ message: 'Comment contains inappropriate language' });
+        }
 
         // Create a new comment object
         const newComment = new Comment({
@@ -25,6 +73,7 @@ exports.createComment = async (req, res) => {
             recipeId,
             username,
             useImage,
+            replies
         });
 
         // Save the new comment
@@ -39,9 +88,11 @@ exports.createComment = async (req, res) => {
         res.status(201).json(savedComment);
     } catch (error) {
         console.error('Error creating comment:', error);
-        res.status(400).json({ message: 'Error creating comment', error });
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 };
+
+
 
 
 
@@ -73,7 +124,7 @@ exports.updateComment = async (req, res) => {
 
         // Request body destructuring
         const { id } = req.params;
-        
+
         // Check if comment belongs to the user
         const comment = await Comment.findById(id);
         if (!comment || comment.userId !== userId) {
@@ -96,28 +147,53 @@ exports.updateComment = async (req, res) => {
 
 exports.deleteComment = async (req, res) => {
     try {
-        // Token authentication logic
-        const token = req.headers.authorization.split(' ')[1];
-        if (!token) {
-            return res.status(401).json({ message: 'Unauthorized: No token provided' });
+        // Extract role and recipeId from request body
+        const { role, recipeId } = req.body;
+
+        // Check if role is "admin" or "moderator"
+        if (role !== "admin" && role !== "moderator") {
+            return res.status(403).json({ message: 'Forbidden: You do not have permission to delete comments' });
         }
 
-        const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
-        const userId = decodedToken.userId;
+        // Extract comment ID from request parameters
+        const commentId = req.params.commentId;
+        console.log('Comment ID:', commentId);
 
-        const commentId = req.params.id;
+        // Find the comment in the database
         const comment = await Comment.findById(commentId);
+        console.log('Comment:', comment);
 
-        // Check if comment exists and belongs to the user
-        if (!comment || comment.userId !== userId) {
+        // Check if comment exists
+        if (!comment) {
             return res.status(404).json({ message: 'Comment not found' });
         }
 
+        // Find the user who posted the comment
+        const user = await User.findById(comment.userId);
+
+        // Remove commentId from the user's commentId array
+        user.commentId.pull(commentId);
+        await user.save();
+
+        // Find the recipe associated with the comment
+        const recipe = await Recipe.findById(recipeId);
+
+        // Remove commentId from the recipe's commentId array
+        recipe.commentId.pull(commentId);
+        await recipe.save();
+
         // Delete the comment
         await Comment.findByIdAndDelete(commentId);
+        console.log('Comment deleted successfully');
+
+        // Respond with success message
         res.status(200).json({ message: "Comment deleted successfully" });
     } catch (error) {
         console.error('Error deleting comment:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
+
+
+
