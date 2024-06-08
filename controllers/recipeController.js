@@ -685,22 +685,32 @@ exports.getFollowingUsersRecipes = async (req, res) => {
 
 exports.saveUserRecipes = async (req, res) => {
   try {
+    console.log('Received request to save recipe');
+    
+    // Extract userId and recipeId from request
     const userId = req.params.userId;
     const { recipeId } = req.body;
+    console.log('userId:', userId);
+    console.log('recipeId:', recipeId);
 
     // Check if a valid token is provided in the request headers
     const token = req.headers.authorization.split(' ')[1];
+    console.log('Token:', token);
     if (!token) {
+      console.log('Unauthorized: No token provided');
       return res.status(401).json({ message: 'Unauthorized: No token provided' });
     }
 
     // Verify the token to ensure it's valid and matches the requested user's ID
     const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+    console.log('Decoded Token:', decodedToken);
     if (!decodedToken.userId || decodedToken.userId !== userId) {
       return res.status(401).json({ message: 'Unauthorized: Invalid token' });
     }
 
+    // Find the user in the database
     const user = await User.findById(userId);
+    console.log('User:', user);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -709,6 +719,9 @@ exports.saveUserRecipes = async (req, res) => {
     if (!user.savedRecipes.includes(recipeId)) {
       user.savedRecipes.push(recipeId);
       await user.save();
+      console.log('Recipe saved successfully');
+    } else {
+      console.log('Recipe already saved');
     }
 
     res.status(200).json({ message: "Recipe saved successfully" });
@@ -717,6 +730,7 @@ exports.saveUserRecipes = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 
 // Fetch the user's saved recipes
