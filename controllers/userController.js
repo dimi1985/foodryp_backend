@@ -54,14 +54,14 @@ exports.registerUser = async (req, res) => {
 
     const newUser = new User({
       username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(memberSince),
-      role, recipes, mealId, recommendedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId, savedRecipes
+      role, recipes, mealId, recommendedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId, savedRecipes,
+      tokens: []
     });
 
     // Generate token
     const token = jwt.sign({ userId: newUser._id }, 'THCR93e9pAQd', { expiresIn: '24h' });
 
     // Append token to user's tokens array
-    newUser.tokens = newUser.tokens || [];
     newUser.tokens.push({ token });
     await newUser.save();
 
@@ -71,6 +71,7 @@ exports.registerUser = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 exports.loginUser = async (req, res) => {
   try {
@@ -89,8 +90,22 @@ exports.loginUser = async (req, res) => {
     // Generate token
     const token = jwt.sign({ userId: user._id }, 'THCR93e9pAQd', { expiresIn: '24h' });
 
-    // Append token to user's tokens array
-    user.tokens = user.tokens || [];
+    // Clean up expired tokens
+    user.tokens = user.tokens.filter(t => {
+      try {
+        jwt.verify(t.token, 'THCR93e9pAQd');
+        return true;
+      } catch (e) {
+        return false;
+      }
+    });
+
+    // Limit the number of tokens
+    if (user.tokens.length >= 5) {
+      user.tokens.shift(); // Remove the oldest token
+    }
+
+    // Append the new token
     user.tokens.push({ token });
     await user.save();
 
@@ -100,6 +115,7 @@ exports.loginUser = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 exports.getUserProfile = async (req, res) => {
   try {
