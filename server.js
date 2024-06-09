@@ -7,7 +7,7 @@ const session = require('express-session');
 
 const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
   getAllUsers, updateUserRole, deleteUser,
-  changeCredentials, getPublicUserProfile, getUsersByPage, addFridgeItem, getFridgeItems, updateFridgeItem, deleteFridgeItem,sendFollowRequest,rejectFollowRequest,followUserBack,unfollowUser,acceptFollowRequest } = require('./controllers/userController');
+  changeCredentials, getPublicUserProfile, getUsersByPage, addFridgeItem, getFridgeItems, updateFridgeItem, deleteFridgeItem,sendFollowRequest,rejectFollowRequest,followUserBack,unfollowUser,acceptFollowRequest,requestPasswordReset,resetPassword } = require('./controllers/userController');
 const { saveCategory, getAllCategories, getFixedCategories, getCategoriesByPage, updateCategory, deleteCategory,uploadCategoryImage } = require('./controllers/categoryController');
 const { saveRecipe, uploadRecipeImage, getAllRecipes,
   recommendRecipe, unRecommendRecipe, updateRecipe, deleteRecipe,
@@ -15,10 +15,11 @@ const { saveRecipe, uploadRecipeImage, getAllRecipes,
   , getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName,getTopThreeRecipes, rateRecipe,getFollowingUsersRecipes,saveUserRecipes,getUserSavedRecipes,removeUserRecipes,getUserSavedRecipesDetails } = require('./controllers/recipeController');
 
 const { saveWeeklyMenu, getWeeklyMenusByPage, getWeeklyMenusByPageAndUser, getWeeklyMenusFixedLength, updateWeeklyMenu,removeFromWeeklyMenu } = require('./controllers/mealController');
-const { createComment,getComments, updateComment, deleteComment } = require('./controllers/commentController');
+const { createComment,getComments, updateComment, deleteComment,getReportedComment, getAllComments, getCommentById } = require('./controllers/commentController');
 
 const { createWikiFood, updateWikiFood, deleteWikiFood, searchWikiFoodByTitle, getWikiFoodsByPage } = require('./controllers/wikiFoodController');
 
+const { createReport, deleteReport,getAllReports} = require('./controllers/reportController');
 
 
 
@@ -66,6 +67,8 @@ app.post('/api/addFridgeItem', addFridgeItem);
 app.get('/api/getFridgeItems/:userId', getFridgeItems);
 app.delete('/api/deleteFridgeItem/', deleteFridgeItem);
 app.put('/api/updateFridgeItem/', updateFridgeItem);
+app.post('/api/requestPasswordReset', requestPasswordReset);
+app.post('/api/resetPassword', resetPassword);
 
 app.post('/api/sendFollowRequest', sendFollowRequest);
 app.post('/api/rejectFollowRequest', rejectFollowRequest);
@@ -116,12 +119,13 @@ app.delete('/api/removeFromWeeklyMenu/:weeklyMenuId', removeFromWeeklyMenu);
 
 
 //Comment Section
-// Use authenticate middleware on protected routes
 app.post('/api/createComment', createComment);
+app.get('/api/getAllComments', getAllComments);
 app.get('/api/getComments/:recipeId', getComments);
 app.put('/api/updateComment/:commentId', updateComment);
 app.delete('/api/deleteComment/:commentId', deleteComment);
-
+app.get('/api/getReportedComment/:commentId', getReportedComment);
+app.get('/api/getCommentById/:commentId', getCommentById);
 
 
 //WikiFood Section
@@ -130,6 +134,14 @@ app.put('/api/updateWikiFood/:id', updateWikiFood);
 app.delete('/api/deleteWikiFood/:id', deleteWikiFood);
 app.get('/api/searchWikiFoodByTitle', searchWikiFoodByTitle);
 app.get('/api/getWikiFoodsByPage', getWikiFoodsByPage);
+
+//report Section
+app.post('/api/createReport', createReport);
+app.delete('/api/deleteReport/:reportId', deleteReport);
+app.get('/api/getAllReports', getAllReports);
+// app.put('/api/updateWikiFood/:id', updateWikiFood);
+// app.get('/api/searchWikiFoodByTitle', searchWikiFoodByTitle);
+
 
 // Start the server
 app.listen(port, () => {

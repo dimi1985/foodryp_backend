@@ -3,9 +3,8 @@ const bcrypt = require('bcrypt');
 
 const fridgeItemSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  category: { type: String, required: true }, 
+  category: { type: String, required: true },
 }, { _id: false }); // Disable _id if you don't want separate IDs for fridge items
-
 
 // Define a schema for individual ratings
 const userRatingSchema = new mongoose.Schema({
@@ -22,14 +21,12 @@ const userRatingSchema = new mongoose.Schema({
   }
 }, { _id: true }); // Include _id if you want to be able to uniquely identify ratings
 
-
 const activitySchema = new mongoose.Schema({
   type: { type: String, enum: ['rating', 'comment', 'new_recipe'], required: true },
   date: { type: Date, default: Date.now },
   recipe: { type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' },
   rating: { type: Number } // Only relevant if type is 'rating'
 });
-
 
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
@@ -55,7 +52,9 @@ const userSchema = new mongoose.Schema({
   ratings: [userRatingSchema], // Add this line to include ratings in the user schema
   activities: [activitySchema],
   savedRecipes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }],
-  tokens: [{ token: String }]
+  tokens: [{ token: String }],
+  resetPasswordToken: { type: String },
+  resetPasswordExpires: { type: Date },
 });
 
 // Method to compare hashed password with plain text password
