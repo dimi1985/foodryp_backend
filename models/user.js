@@ -53,13 +53,23 @@ const userSchema = new mongoose.Schema({
   activities: [activitySchema],
   savedRecipes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }],
   tokens: [{ token: String }],
-  resetPasswordToken: { type: String },
-  resetPasswordExpires: { type: Date },
+  pinHash: String, // Store hashed PIN here
 });
 
 // Method to compare hashed password with plain text password
 userSchema.methods.isValidPassword = async function (password) {
   return await bcrypt.compare(password, this.password);
+};
+
+// Method to hash a PIN
+userSchema.methods.hashPin = async function(pin) {
+  const saltRounds = 10; // Adjust according to your security needs
+  return await bcrypt.hash(pin, saltRounds);
+};
+
+// Method to compare hashed PIN with plain text PIN
+userSchema.methods.isValidPIN = async function (pin) {
+  return await bcrypt.compare(pin, this.pinHash);
 };
 
 module.exports = mongoose.model('User', userSchema);

@@ -414,12 +414,14 @@ exports.changeCredentials = async (req, res) => {
     // Check if a valid token is provided in the request headers
     const token = req.headers.authorization.split(' ')[1];
     if (!token) {
+      console.log('Unauthorized: No token provided');
       return res.status(401).json({ message: 'Unauthorized: No token provided' });
     }
 
     // Verify the token to ensure it's valid
-    const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); // Replace 'your_secret_key' with your actual secret key
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
     if (!decodedToken.userId) {
+      console.log('Unauthorized: Invalid token');
       return res.status(401).json({ message: 'Unauthorized: Invalid token' });
     }
 
@@ -427,31 +429,47 @@ exports.changeCredentials = async (req, res) => {
 
     const { oldPassword, newUsername, newEmail, newPassword } = req.body;
 
+    console.log(`Received request to change credentials for userId: ${userId}`);
+
     // Fetch the user from the database
     const user = await User.findById(userId);
     if (!user) {
+      console.log(`User not found for userId: ${userId}`);
       return res.status(404).json({ error: 'User not found' });
     }
+
+    console.log(`Found user: ${user.username}`);
 
     // Compare the provided old password with the stored hashed password
     if (oldPassword) {
       const passwordMatch = await bcrypt.compare(oldPassword, user.password);
       if (!passwordMatch) {
+        console.log('Incorrect password');
         return res.status(400).json({ error: 'Incorrect password' });
       }
+      console.log('Old password verified');
     }
 
     // Update user credentials based on provided fields
-    if (newUsername) user.username = newUsername;
-    if (newEmail) user.email = newEmail;
+    if (newUsername) {
+      console.log(`Updating username to: ${newUsername}`);
+      user.username = newUsername;
+    }
+    if (newEmail) {
+      console.log(`Updating email to: ${newEmail}`);
+      user.email = newEmail;
+    }
     if (newPassword) {
       // Hash the new password before storing it
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       user.password = hashedPassword;
+      console.log('New password hashed and updated');
     }
 
     // Save the updated user
     await user.save();
+
+    console.log(`Credentials updated successfully for user: ${user.username}`);
 
     res.status(200).json({ message: 'Credentials updated successfully' });
   } catch (error) {
@@ -459,6 +477,7 @@ exports.changeCredentials = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
 
 
 exports.getPublicUserProfile = async (req, res) => {
@@ -849,73 +868,151 @@ exports.acceptFollowRequest = async (req, res) => {
   }
 };
 
-exports.requestPasswordReset = async (req, res) => {
+exports.savePin = async (req, res) => {
   try {
-    const { email } = req.body;
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
     }
 
-    // Generate a reset token and its expiration time
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = Date.now() + 3600000; // Token valid for 1 hour
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
 
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = resetTokenExpiry;
+    const userId = decodedToken.userId;
+
+    const { pin } = req.body;
+
+    // Hash the PIN before storing it
+    const hashedPin = await bcrypt.hash(pin, 10); // Adjust salt rounds as needed
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.pinHash = hashedPin;
+
     await user.save();
-    require('dotenv').config();
-    // Send the reset email
-    const transporter = nodemailer.createTransport({
-      service: 'Gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
 
-    const mailOptions = {
-      to: user.email,
-      from: process.env.EMAIL_USER,
-      subject: 'Password Reset Request',
-      text: `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n
-             Please click on the following link, or paste this into your browser to complete the process:\n\n
-             http://${req.headers.host}/resetPassword?token=${resetToken}\n\n
-             If you did not request this, please ignore this email and your password will remain unchanged.\n`,
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    res.status(200).json({ message: 'Password reset email sent' });
+    res.status(200).json({ message: 'PIN saved successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('Error saving PIN:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+exports.getPin = async (req, res) => {
+  try {
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      console.error('Unauthorized: No token provided');
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+    if (!decodedToken.userId) {
+      console.error('Unauthorized: Invalid token');
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
+    const userId = decodedToken.userId;
+
+    // Ensure that the requested userId matches the token's userId for security
+    if (userId !== req.params.userId) {
+      console.error(`Forbidden: Access to another user's PIN is not allowed. Requested userId: ${req.params.userId}, Token userId: ${userId}`);
+      return res.status(403).json({ message: `Forbidden: Access to another user's PIN is not allowed` });
+    }
+
+    // Find the user and return the hashed PIN
+    const user = await User.findById(userId);
+    if (!user) {
+      console.error(`User not found for userId: ${userId}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.status(200).json({ pinHash: user.pinHash });
+  } catch (error) {
+    console.error('Error fetching PIN:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+exports.validatePIN = async (req, res) => {
+  try {
+    const { username, pin } = req.body;
+
+    if (!username || !pin) {
+      console.error('Invalid request: username or pin missing');
+      return res.status(400).json({ error: 'Invalid request: username or pin missing' });
+    }
+
+    // Retrieve user by username from database or some trusted source
+    const user = await User.findOne({ username });
+    if (!user) {
+      console.error(`User not found for username: ${username}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Validate the provided PIN using the isValidPIN method
+    const isValid = user.$isValid(pin);
+
+    if (isValid) {
+      // PIN validation successful
+      return res.status(200).json({ message: 'PIN validated successfully' });
+    } else {
+      // PIN validation failed
+      console.error('Invalid PIN');
+      return res.status(400).json({ error: 'Invalid PIN' });
+    }
+  } catch (error) {
+    console.error('Error validating PIN:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 
 exports.resetPassword = async (req, res) => {
   try {
-    const { token, newPassword } = req.body;
+    const { username, newPassword } = req.body;
 
-    const user = await User.findOne({
-      resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return res.status(400).json({ message: 'Password reset token is invalid or has expired' });
+    // Basic validation - check if username and newPassword are provided
+    if (!username || !newPassword) {
+      return res.status(400).json({ message: 'Username and newPassword are required' });
     }
 
-    user.password = newPassword; // Make sure to hash the password before saving
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
-    await user.save();
+    // Find user by username
+    let user = await User.findOne({ username });
+    if (!user) {
+      console.log(`User not found for username: ${username}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-    res.status(200).json({ message: 'Password has been reset' });
+    // Hash the new password before saving
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    console.log('New password hashed and updated');
+
+    // Save the updated user with the new password
+    user = await user.save();
+
+    console.log(`Password reset successfully for user: ${user.username}`);
+
+    // Respond with success message
+    res.status(200).json({ message: 'Password reset successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('Error resetting password:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+
+
+
+
+
+
 
 
 

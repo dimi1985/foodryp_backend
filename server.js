@@ -7,7 +7,7 @@ const session = require('express-session');
 
 const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
   getAllUsers, updateUserRole, deleteUser,
-  changeCredentials, getPublicUserProfile, getUsersByPage, addFridgeItem, getFridgeItems, updateFridgeItem, deleteFridgeItem,sendFollowRequest,rejectFollowRequest,followUserBack,unfollowUser,acceptFollowRequest,requestPasswordReset,resetPassword } = require('./controllers/userController');
+  changeCredentials, getPublicUserProfile, getUsersByPage, addFridgeItem, getFridgeItems, updateFridgeItem, deleteFridgeItem,sendFollowRequest,rejectFollowRequest,followUserBack,unfollowUser,acceptFollowRequest,savePin,getPin,validatePIN,resetPassword } = require('./controllers/userController');
 const { saveCategory, getAllCategories, getFixedCategories, getCategoriesByPage, updateCategory, deleteCategory,uploadCategoryImage } = require('./controllers/categoryController');
 const { saveRecipe, uploadRecipeImage, getAllRecipes,
   recommendRecipe, unRecommendRecipe, updateRecipe, deleteRecipe,
@@ -67,8 +67,11 @@ app.post('/api/addFridgeItem', addFridgeItem);
 app.get('/api/getFridgeItems/:userId', getFridgeItems);
 app.delete('/api/deleteFridgeItem/', deleteFridgeItem);
 app.put('/api/updateFridgeItem/', updateFridgeItem);
-app.post('/api/requestPasswordReset', requestPasswordReset);
-app.post('/api/resetPassword', resetPassword);
+app.post('/api/savePin', savePin);
+app.get('/api/getPin/:userId', getPin);
+app.post('/api/validatePIN/', validatePIN);
+app.put('/api/resetPassword', resetPassword);
+
 
 app.post('/api/sendFollowRequest', sendFollowRequest);
 app.post('/api/rejectFollowRequest', rejectFollowRequest);
