@@ -5,24 +5,18 @@ const multer = require('multer');
 const aws = require('aws-sdk');
 const multerS3 = require('multer-s3');
 const jwt = require('jsonwebtoken');
-// Configure multer to handle category image uploads
-const s3 = new aws.S3({
-  endpoint: 'http://localhost:9000', // Simplified endpoint setting
-  accessKeyId: 'qHs9NZ1FbCZQNmfllG8L',
-  secretAccessKey: 'coKQudDRlykMqQxIQrTWEC0aQwxOD8dojxZQAYDs',
-  s3ForcePathStyle: true, // needed with MinIO
-  signatureVersion: 'v4'
-});
+const s3 = require('./utils/s3Config');
+let recipeName = '';
 
 const upload = multer({
   storage: multerS3({
     s3: s3,
-    bucket: 'server',
+    bucket: 'foodryp',
     acl: 'public-read',
     key: function (request, file, cb) {
-
+      const filename = `recipe_${recipeName}.jpg`;
       const folder = 'recipePictures'; // Specify the folder name here
-      const key = `${folder}/${file.originalname}`; // Concatenate folder name with the file name
+      const key = `${folder}/${filename}`; // Full path with filenamefile name
       cb(null, key); // Use the key for upload
     }
   })
@@ -34,7 +28,7 @@ const cache = {
   lastUpdated: null,
 };
 
-const cacheTTL = 7 * 24 * 60 * 60 * 1000; // One week in milliseconds
+const cacheTTL = 7 * 24 * 60 * 60 * 1000;
 
 // Method to save category with all fields and upload image (merged)
 exports.saveRecipe = async (req, res) => {
@@ -56,7 +50,7 @@ exports.saveRecipe = async (req, res) => {
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
       categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories } = req.body;
-
+      
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
       return res.status(400).json({ message: 'Recipe already exists' });
@@ -67,9 +61,10 @@ exports.saveRecipe = async (req, res) => {
       username, useImage, userId, dateCreated, description, recipeImage,
       instructions, categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories
     });
-
+    recipeName = newRecipe._id;
     await newRecipe.save();
-
+    
+    
     // Update category recipes field
     await Category.findByIdAndUpdate(categoryId, { $push: { recipes: newRecipe._id } });
 
@@ -123,17 +118,7 @@ exports.uploadRecipeImage = async (req, res) => {
 
       // Delete the old image if it exists in the bucket
       if (recipe.recipeImage) {
-        const key = recipe.recipeImage.replace('http://localhost:9000/server/', '');
-        const encodedKey = decodeURIComponent(key);
-        const deleteParams = {
-          Bucket: 'server',
-          Key: encodedKey
-        };
-        s3.deleteObject(deleteParams, function (deleteErr, data) {
-          if (deleteErr) {
-            console.error('Error deleting old image file:', deleteErr);
-          }
-        });
+        await deleteS3Object(recipe.recipeImage);
       }
 
       // Update the recipe document with the new image URL
@@ -149,6 +134,7 @@ exports.uploadRecipeImage = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 
 
@@ -363,21 +349,8 @@ exports.deleteRecipe = async (req, res) => {
 
     // Delete the recipe image file from the bucket
     if (recipe.recipeImage) {
-      const key = recipe.recipeImage.replace('http://localhost:9000/server/', '');
-      const encodedKey = decodeURIComponent(key);
-
-      const deleteParams = {
-        Bucket: 'server',
-        Key: encodedKey
-      };
-
-      s3.deleteObject(deleteParams, function (deleteErr, data) {
-        if (deleteErr) {
-          console.error('Error deleting image file from bucket:', deleteErr);
-        } else {
-          console.log('Image file deleted successfully from bucket', data);
-        }
-      });
+      await deleteS3Object(recipe.recipeImage);
+     
     }
 
     // Delete the recipe document
@@ -391,6 +364,29 @@ exports.deleteRecipe = async (req, res) => {
 };
 
 
+async function deleteS3Object(imageUrl) {
+  const bucketName = 'foodryp'; // Adjust bucket name as necessary
+  // Correct the base URL and ensure it exactly matches how the keys are stored/retrieved.
+  const baseUrl = 'http://foodryp.com:9010/foodryp/'; // Make sure there's no double slash here
+  const key = imageUrl.replace(baseUrl, ''); // Remove the base URL part to get the actual key
+
+  const deleteParams = {
+    Bucket: bucketName,
+    Key: key // Use the key directly without decoding
+  };
+
+  return new Promise((resolve, reject) => {
+    s3.deleteObject(deleteParams, (err, data) => {
+      if (err) {
+        console.error('Failed to delete S3 object:', err);
+        reject(err);
+        return;
+      }
+      console.log('Successfully deleted S3 object:', data);
+      resolve(data);
+    });
+  });
+}
 
 exports.getUserRecipesByPage = async (req, res) => {
   try {
@@ -505,6 +501,7 @@ exports.getAllRecipesByPage = async (req, res) => {
 
       return res.status(200).json([]);
     }
+    console.log('All Recipes: ', recipes);
     res.status(200).json(recipes);
   } catch (error) {
     console.error('Error fetching recipes by page:', error);
@@ -542,7 +539,6 @@ exports.searchRecipesByName = async (req, res) => {
   }
 };
 
-// Function to fetch and cache the top three recipes
 const fetchAndCacheTopThreeRecipes = async () => {
   try {
     const recipes = await Recipe.find().sort({ rating: -1, ratingCount: -1 }).limit(3);
@@ -554,8 +550,8 @@ const fetchAndCacheTopThreeRecipes = async () => {
   }
 };
 
-// Schedule the job to run once a week
-cron.schedule('0 0 * * 0', fetchAndCacheTopThreeRecipes); // This schedules the job to run at midnight every Sunday
+// Schedule the job to run once a day
+cron.schedule('0 0 * * *', fetchAndCacheTopThreeRecipes); // This schedules the job to run at midnight every day
 
 // Manually run the job on server start
 fetchAndCacheTopThreeRecipes();
@@ -580,6 +576,7 @@ exports.getTopThreeRecipes = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 // Example function to add or update a user's rating of a recipe
 exports.rateRecipe = async (req, res) => {

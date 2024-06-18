@@ -4,35 +4,31 @@ const path = require('path');
 const multer = require('multer');
 const aws = require('aws-sdk');
 const multerS3 = require('multer-s3');
+const s3 = require('./utils/s3Config');
+let categoryName = '';
 
-// Configure multer to handle category image uploads
-const s3 = new aws.S3({
-  endpoint: 'http://localhost:9000', // Simplified endpoint setting
-  accessKeyId: 'qHs9NZ1FbCZQNmfllG8L',
-  secretAccessKey: 'coKQudDRlykMqQxIQrTWEC0aQwxOD8dojxZQAYDs',
-  s3ForcePathStyle: true, // needed with MinIO
-  signatureVersion: 'v4'
-});
+
 
 const upload = multer({
   storage: multerS3({
     s3: s3,
-    bucket: 'server',
+    bucket: 'foodryp',
     acl: 'public-read',
-    key: function (request, file, cb) {
-
-      const folder = 'categoryPictures'; // Specify the folder name here
-      const key = `${folder}/${file.originalname}`; // Concatenate folder name with the file name
-      cb(null, key); // Use the key for upload
+    key: function (req, file, cb) {
+      const filename = `category_${categoryName}.jpg`;
+      const folder = 'categoryPictures'; // Folder to store in S3
+      const key = `${folder}/${filename}`; // Full path with filename
+      cb(null, key); // Pass the full path with the filename to the callback
     }
   })
 });
+
 
 // Method to save category with all fields and upload image (merged)
 exports.saveCategory = async (req, res) => {
   try {
     const { name, font, color, categoryImage, recipes, isForDiet, isForVegetarians, userRole } = req.body;
-
+    categoryName = name;
     // Check if the userRole is 'admin'
     if (userRole === 'admin') {
       const existingCategory = await Category.findOne({ name });
@@ -110,27 +106,6 @@ exports.uploadCategoryImage = async (req, res) => {
   });
 };
 
-async function deleteS3Object(imageUrl) {
-  const bucketName = 'server'; // Adjust bucket name as necessary
-  const key = imageUrl.replace('http://localhost:9000/server/', '');
-  const encodedKey = decodeURIComponent(key);
-
-  const deleteParams = {
-    Bucket: bucketName,
-    Key: encodedKey
-  };
-
-  return new Promise((resolve, reject) => {
-    s3.deleteObject(deleteParams, (err, data) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve(data);
-    });
-  });
-}
-
 exports.updateCategory = async (req, res) => {
   try {
     const categoryId = req.params.categoryId;
@@ -178,6 +153,11 @@ exports.deleteCategory = async (req, res) => {
       return res.status(404).json({ message: 'Category not found' });
     }
 
+    // Delete the associated image from S3 if it exists
+    if (category.categoryImage) {
+      await deleteS3Object(category.categoryImage);
+    }
+
     // Step 2: Extract the IDs of the recipes associated with the category
     const recipeIds = category.recipes;
 
@@ -188,22 +168,17 @@ exports.deleteCategory = async (req, res) => {
         // Find the default category document
         const defaultCategory = await Category.findOne({ name: 'Uncategorized' });
 
-        // Check if the default category exists and has all required fields
-        if (defaultCategory && defaultCategory.color && defaultCategory.font && defaultCategory.name) {
+        if (defaultCategory) {
           // Set the recipe's categoryId to the ID of the default category
           recipe.categoryId = defaultCategory._id;
-          // Set the recipe's categoryColor, categoryFont, and categoryName
-          recipe.categoryColor = defaultCategory.color;
-          recipe.categoryFont = defaultCategory.font;
-          recipe.categoryName = defaultCategory.name;
+          recipe.categoryColor = defaultColor.color;
+          recipe.categoryFont = defaultColor.font;
+          recipe.categoryName = defaultColor.name;
 
           await recipe.save();
           // Push recipe ID into the default category's recipes array
           defaultCategory.recipes.push(recipe._id);
-
           await defaultCategory.save();
-        } else {
-
         }
       }
     }
@@ -213,11 +188,34 @@ exports.deleteCategory = async (req, res) => {
 
     res.status(200).json({ message: 'Category deleted successfully' });
   } catch (error) {
-
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('Error deleting category:', error);
+    res.status(500).json({ message: 'Internal server service error' });
   }
 };
 
+async function deleteS3Object(imageUrl) {
+  const bucketName = 'foodryp'; // Adjust bucket name as necessary
+  // Correct the base URL and ensure it exactly matches how the keys are stored/retrieved.
+  const baseUrl = 'http://foodryp.com:9010/foodryp/'; // Make sure there's no double slash here
+  const key = imageUrl.replace(baseUrl, ''); // Remove the base URL part to get the actual key
+
+  const deleteParams = {
+    Bucket: bucketName,
+    Key: key // Use the key directly without decoding
+  };
+
+  return new Promise((resolve, reject) => {
+    s3.deleteObject(deleteParams, (err, data) => {
+      if (err) {
+        console.error('Failed to delete S3 object:', err);
+        reject(err);
+        return;
+      }
+      console.log('Successfully deleted S3 object:', data);
+      resolve(data);
+    });
+  });
+}
 
 
 

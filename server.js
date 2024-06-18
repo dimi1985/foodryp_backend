@@ -28,22 +28,15 @@ const app = express();
 
 const port = 3000;
 
-// Middleware setup
-app.use(bodyParser.json());
-app.use(cors());
+app.use(cors())
 
-app.use('/profilePictures', express.static('profilePictures'));
-
-app.use('/categoryPictures', express.static('categoryPictures'));
-
-app.use('/recipePictures', express.static('recipePictures'));
 
 // Increase payload size limit (e.g., 50MB)
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 // Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/foodryp')
+mongoose.connect('mongodb://38.242.241.46:27017/foodryp')
   .then(() => {
     console.log('Connected to MongoDB');
   })

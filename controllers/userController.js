@@ -8,26 +8,18 @@ const multerS3 = require('multer-s3');
 const fs = require('fs');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-
-const s3 = new aws.S3({
-  endpoint: 'http://localhost:9000', // Simplified endpoint setting
-  accessKeyId: 'qHs9NZ1FbCZQNmfllG8L',
-  secretAccessKey: 'coKQudDRlykMqQxIQrTWEC0aQwxOD8dojxZQAYDs',
-  s3ForcePathStyle: true, // needed with MinIO
-  signatureVersion: 'v4'
-});
-
+const s3 = require('./utils/s3Config');
+let userName = '';
 
 const upload = multer({
   storage: multerS3({
     s3: s3,
-    bucket: 'server',
+    bucket: 'foodryp',
     acl: 'public-read',
     key: function (request, file, cb) {
-      console.log(file);
+      const filename = `user_${userName}.jpg`;
       const folder = 'profilePictures'; // Specify the folder name here
-      const key = `${folder}/${file.originalname}`; // Concatenate folder name with the file name
+      const key = `${folder}/${filename}`; // Full path with filename
       cb(null, key); // Use the key for upload
     }
   })
@@ -40,7 +32,7 @@ exports.registerUser = async (req, res) => {
       username, email, password, gender, profileImage, memberSince, role, recipes, mealId, recommendedRecipes,
       followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId, savedRecipes 
     } = req.body;
-
+    userName =username;
     const existingUserByEmail = await User.findOne({ email });
     if (existingUserByEmail) {
       return res.status(409).json({ message: 'Email already exists' });
@@ -215,26 +207,7 @@ exports.uploadProfilePicture = async (req, res) => {
 
       // Delete the old profile picture from storage if it exists
       if (user.profileImage) {
-        try {
-          const key = user.profileImage.replace('http://localhost:9000/server/', '');
-          const encodedKey = decodeURIComponent(key);
-          console.log("Found file with key:", encodedKey);
-
-          const deleteParams = {
-            Bucket: 'server',
-            Key: encodedKey
-          };
-
-          s3.deleteObject(deleteParams, function (deleteErr, data) {
-            if (deleteErr) {
-              console.error('Error deleting old image file:', deleteErr);
-            } else {
-              console.log('File deleted successfully', data);
-            }
-          });
-        } catch (error) {
-          console.error('Error deleting old image file:', error);
-        }
+        await deleteS3Object(user.profileImage);
       }
 
       // Update the user document with the new profile picture URL
@@ -268,7 +241,29 @@ exports.uploadProfilePicture = async (req, res) => {
   }
 };
 
+async function deleteS3Object(imageUrl) {
+  const bucketName = 'foodryp'; // Adjust bucket name as necessary
+  // Correct the base URL and ensure it exactly matches how the keys are stored/retrieved.
+  const baseUrl = 'http://foodryp.com:9010/foodryp/'; // Make sure there's no double slash here
+  const key = imageUrl.replace(baseUrl, ''); // Remove the base URL part to get the actual key
 
+  const deleteParams = {
+    Bucket: bucketName,
+    Key: key // Use the key directly without decoding
+  };
+
+  return new Promise((resolve, reject) => {
+    s3.deleteObject(deleteParams, (err, data) => {
+      if (err) {
+        console.error('Failed to delete S3 object:', err);
+        reject(err);
+        return;
+      }
+      console.log('Successfully deleted S3 object:', data);
+      resolve(data);
+    });
+  });
+}
 
 //Admin Methods!
 
@@ -942,35 +937,37 @@ exports.getPin = async (req, res) => {
 exports.validatePIN = async (req, res) => {
   try {
     const { username, pin } = req.body;
+    console.log('Received username:', username, 'Received PIN:', pin);
 
     if (!username || !pin) {
       console.error('Invalid request: username or pin missing');
       return res.status(400).json({ error: 'Invalid request: username or pin missing' });
     }
 
-    // Retrieve user by username from database or some trusted source
-    const user = await User.findOne({ username });
+    console.log(`Looking up user by username: ${username}`);
+    const user = await User.findOne({ username }).exec(); // Ensure fresh data
     if (!user) {
       console.error(`User not found for username: ${username}`);
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Validate the provided PIN using the isValidPIN method
-    const isValid = user.$isValid(pin);
+    console.log(`User found: ${user.username}, Validating PIN...`);
+    const isValid = await user.isValidPIN(pin);
 
     if (isValid) {
-      // PIN validation successful
+      console.log('PIN validated successfully for user:', username);
       return res.status(200).json({ message: 'PIN validated successfully' });
     } else {
-      // PIN validation failed
-      console.error('Invalid PIN');
+      console.error('Invalid PIN for user:', username);
       return res.status(400).json({ error: 'Invalid PIN' });
     }
   } catch (error) {
     console.error('Error validating PIN:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 };
+
+
 
 
 exports.resetPassword = async (req, res) => {

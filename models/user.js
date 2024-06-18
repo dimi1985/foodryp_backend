@@ -67,9 +67,10 @@ userSchema.methods.hashPin = async function(pin) {
   return await bcrypt.hash(pin, saltRounds);
 };
 
-// Method to compare hashed PIN with plain text PIN
-userSchema.methods.isValidPIN = async function (pin) {
-  return await bcrypt.compare(pin, this.pinHash);
+userSchema.methods.isValidPIN = async function (inputPin) {
+  // Correcting to use 'this.pinHash' as that is the actual field name per your schema
+  return bcrypt.compare(inputPin, this.pinHash);
 };
+
 
 module.exports = mongoose.model('User', userSchema);
