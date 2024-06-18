@@ -49,7 +49,7 @@ exports.saveRecipe = async (req, res) => {
 
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories } = req.body;
+      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories,isPremium,price,buyers } = req.body;
       
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
@@ -59,7 +59,7 @@ exports.saveRecipe = async (req, res) => {
     const newRecipe = new Recipe({
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty,
       username, useImage, userId, dateCreated, description, recipeImage,
-      instructions, categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories
+      instructions, categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories,isPremium,price,buyers
     });
     recipeName = newRecipe._id;
     await newRecipe.save();
@@ -157,17 +157,7 @@ exports.updateRecipe = async (req, res) => {
 
     const { recipeTitle, ingredients, instructions, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description,
-      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories } = req.body;
-
-    console.log('got fields from client: ', recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
-      userId, dateCreated, description, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories);
-
-
-
-
-
-
+      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories,isPremium,price,buyers } = req.body;
 
     // First, find the current recipe to check the existing category ID
     const existingRecipe = await Recipe.findById(recipeId);
@@ -179,7 +169,7 @@ exports.updateRecipe = async (req, res) => {
     const updateFields = {
       recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, instructions,
-      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories
+      categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories,isPremium,price,buyers
     };
 
     // Check if the recipe exists and update it
@@ -830,5 +820,46 @@ exports.getUserSavedRecipesDetails = async (req, res) => {
   }
 };
 
+exports.getPremiumRecipes = async (req, res) => {
+  try {
+    const userId = req.params.userId;
 
+    // Check if a valid token is provided in the request headers
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
 
+    // Verify the token to ensure it's valid
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+    if (!decodedToken.userId || decodedToken.userId !== userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const premiumRecipes = await Recipe.find({ isPremium: true }).sort({ dateCreated: -1 });
+
+    res.status(200).json(premiumRecipes);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching premium recipes', error });
+  }
+};
+
+exports.isRecipePremium = async (req, res) => {
+  try {
+    const recipeId = req.params.recipeId;
+
+    const recipe = await Recipe.findById(recipeId);
+    if (!recipe) {
+      return res.status(404).json({ message: 'Recipe not found' });
+    }
+
+    res.status(200).json({ isPremium: recipe.isPremium });
+  } catch (error) {
+    res.status(500).json({ message: 'Error checking if recipe is premium', error });
+  }
+};

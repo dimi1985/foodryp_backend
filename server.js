@@ -12,7 +12,7 @@ const { saveCategory, getAllCategories, getFixedCategories, getCategoriesByPage,
 const { saveRecipe, uploadRecipeImage, getAllRecipes,
   recommendRecipe, unRecommendRecipe, updateRecipe, deleteRecipe,
   getUserPublicRecipesByPage, getRecipesByCategory
-  , getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName,getTopThreeRecipes, rateRecipe,getFollowingUsersRecipes,saveUserRecipes,getUserSavedRecipes,removeUserRecipes,getUserSavedRecipesDetails } = require('./controllers/recipeController');
+  , getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName,getTopThreeRecipes, rateRecipe,getFollowingUsersRecipes,saveUserRecipes,getUserSavedRecipes,removeUserRecipes,getUserSavedRecipesDetails,getPremiumRecipes,isRecipePremium } = require('./controllers/recipeController');
 
 const { saveWeeklyMenu, getWeeklyMenusByPage, getWeeklyMenusByPageAndUser, getWeeklyMenusFixedLength, updateWeeklyMenu,removeFromWeeklyMenu } = require('./controllers/mealController');
 const { createComment,getComments, updateComment, deleteComment,getReportedComment, getAllComments, getCommentById } = require('./controllers/commentController');
@@ -21,7 +21,7 @@ const { createWikiFood, updateWikiFood, deleteWikiFood, searchWikiFoodByTitle, g
 
 const { createReport, deleteReport,getAllReports} = require('./controllers/reportController');
 
-
+const { saveAgreement} = require('./controllers/userAgreementController');
 
 const app = express();
 
@@ -103,8 +103,10 @@ app.post('/api/saveUserRecipes/:userId', saveUserRecipes);
 app.get('/api/getUserSavedRecipes/:userId', getUserSavedRecipes);
 app.get('/api/getUserSavedRecipesDetails/:userId', getUserSavedRecipesDetails);
 app.delete('/api/removeUserRecipes/:userId', removeUserRecipes);
-//WeeklyMenu Section
+app.get('/api/premium_recipes/:userId', getPremiumRecipes);
+app.get('/api/recipes/isPremium/:recipeId', isRecipePremium);
 
+//WeeklyMenu Section
 app.post('/api/saveWeeklyMenu', saveWeeklyMenu);
 app.get('/api/getWeeklyMenusByPage/', getWeeklyMenusByPage);
 app.get('/api/getWeeklyMenusByPageAndUser/:userId', getWeeklyMenusByPageAndUser);
@@ -138,6 +140,8 @@ app.get('/api/getAllReports', getAllReports);
 // app.put('/api/updateWikiFood/:id', updateWikiFood);
 // app.get('/api/searchWikiFoodByTitle', searchWikiFoodByTitle);
 
+
+app.post('/api/saveAgreement', saveAgreement);
 
 // Start the server
 app.listen(port, () => {

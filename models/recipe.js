@@ -74,7 +74,7 @@ const recipeSchema = new mongoose.Schema({
   commentId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
   isForDiet: { type: Boolean, default: false },
   isForVegetarians: { type: Boolean, default: false },
-  rating: { type: Number, default: 0 }, 
+  rating: { type: Number, default: 0 },
   ratingCount: { type: Number, default: 0 },
   cookingAdvices: {
     type: [],
@@ -82,6 +82,15 @@ const recipeSchema = new mongoose.Schema({
   calories: {
     type: String,
   },
+  isPremium: {
+    type: Boolean,
+    default: false,
+  },
+  price: { type: Number, default: 0.0 },
+  buyers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  }],
 });
 
 recipeSchema.index({ recipeTitle: 'text', description: 'text' });
