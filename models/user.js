@@ -54,6 +54,8 @@ const userSchema = new mongoose.Schema({
   savedRecipes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }],
   tokens: [{ token: String }],
   pinHash: String, // Store hashed PIN here
+  themePreference: { type: String, enum: ['light', 'dark'], default: 'light' },
+  languagePreference: { type: String, enum: ['en-US', 'el-GR'], default: 'en-US' },
 });
 
 // Method to compare hashed password with plain text password
@@ -62,7 +64,7 @@ userSchema.methods.isValidPassword = async function (password) {
 };
 
 // Method to hash a PIN
-userSchema.methods.hashPin = async function(pin) {
+userSchema.methods.hashPin = async function (pin) {
   const saltRounds = 10; // Adjust according to your security needs
   return await bcrypt.hash(pin, saltRounds);
 };

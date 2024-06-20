@@ -211,11 +211,11 @@ exports.deleteComment = async (req, res) => {
 
         // Extract comment ID from request parameters
         const commentId = req.params.commentId;
-        console.log('Comment ID:', commentId);
+
 
         // Find the comment in the database
         const comment = await Comment.findById(commentId);
-        console.log('Comment:', comment);
+
 
         // Check if comment exists
         if (!comment) {
@@ -272,7 +272,7 @@ exports.getReportedComment = async (req, res) => {
         return res.status(404).json({ message: 'Reported comment not found' });
       }
       // If the reported comment is found, return it in the response
-      console.log(reportedComment);
+
       res.status(200).json({ reportedComment });
     } catch (error) {
       console.error('Error fetching reported comment:', error);
@@ -310,7 +310,7 @@ exports.getReportedComment = async (req, res) => {
         return res.status(404).json({ message: 'Comment not found' });
       }
       // If comment is found, return it in the response
-      console.log(comment);
+
       res.status(200).json(comment);
     } catch (error) {
       console.error('Error fetching comment:', error);

@@ -7,28 +7,37 @@ const multerS3 = require('multer-s3');
 const jwt = require('jsonwebtoken');
 const s3 = require('./utils/s3Config');
 let recipeName = '';
+const cron = require('node-cron');
 
 const upload = multer({
   storage: multerS3({
     s3: s3,
     bucket: 'foodryp',
     acl: 'public-read',
-    key: function (request, file, cb) {
-      const filename = `recipe_${recipeName}.jpg`;
+    key: function (req, file, cb) {
+  
+      // Check if recipeName is defined and is a string
+      if (typeof recipeName !== 'string') {
+        return cb(new Error('recipeName is not defined or not a string'));
+      }
+
+      // Replace spaces with underscores
+      const recipeNameWithUnderscores = recipeName.replace(/\s+/g, '_');
+      const filename = `recipe_${recipeNameWithUnderscores}.jpg`;
       const folder = 'recipePictures'; // Specify the folder name here
-      const key = `${folder}/${filename}`; // Full path with filenamefile name
+      const key = `${folder}/${filename}`; // Full path with filename
+
+      // Call the callback function with null error and the key
       cb(null, key); // Use the key for upload
     }
   })
 });
 
-const cron = require('node-cron');
 const cache = {
   topThreeRecipes: null,
   lastUpdated: null,
 };
-
-const cacheTTL = 7 * 24 * 60 * 60 * 1000;
+const cacheTTL = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
 
 // Method to save category with all fields and upload image (merged)
 exports.saveRecipe = async (req, res) => {
@@ -139,7 +148,7 @@ exports.uploadRecipeImage = async (req, res) => {
 
 
 exports.updateRecipe = async (req, res) => {
-  console.log('got here');
+
   try {
     // Check if a valid token is provided in the request headers
     const token = req.headers.authorization.split(' ')[1];
@@ -154,7 +163,7 @@ exports.updateRecipe = async (req, res) => {
     }
 
     const recipeId = req.params.recipeId;
-
+    recipeName = recipeId;
     const { recipeTitle, ingredients, instructions, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description,
       categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories,isPremium,price,buyers } = req.body;
@@ -416,7 +425,7 @@ exports.getUserRecipesByPage = async (req, res) => {
       .skip(skipCount)
       .limit(parseInt(pageSize, 10));
 
-    console.log(recipes);
+
     res.status(200).json(recipes);
   } catch (error) {
     console.error('Error fetching user recipes:', error);
@@ -491,7 +500,7 @@ exports.getAllRecipesByPage = async (req, res) => {
 
       return res.status(200).json([]);
     }
-    console.log('All Recipes: ', recipes);
+
     res.status(200).json(recipes);
   } catch (error) {
     console.error('Error fetching recipes by page:', error);
@@ -536,17 +545,16 @@ const fetchAndCacheTopThreeRecipes = async () => {
     cache.lastUpdated = new Date();
     console.log('Top three recipes updated:', cache.lastUpdated);
   } catch (error) {
-    console.error('Error fetching top three recipes:', error);
+    console.error('Error fetching top three recipes:', error.message, error.stack);
   }
 };
 
-// Schedule the job to run once a day
-cron.schedule('0 0 * * *', fetchAndCacheTopThreeRecipes); // This schedules the job to run at midnight every day
+// Schedule the job to run once a day at midnight
+cron.schedule('0 0 * * *', fetchAndCacheTopThreeRecipes);
 
 // Manually run the job on server start
 fetchAndCacheTopThreeRecipes();
 
-// Endpoint to get the top three recipes
 exports.getTopThreeRecipes = async (req, res) => {
   try {
     const now = new Date();
@@ -562,11 +570,17 @@ exports.getTopThreeRecipes = async (req, res) => {
       return res.status(204).json({ message: 'No recipes found' });
     }
   } catch (error) {
-    console.error('Error fetching top three recipes:', error);
+    console.error('Error fetching top three recipes:', error.message, error.stack);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
+
+exports.invalidateCache = (req, res) => {
+  cache.topThreeRecipes = null;
+  cache.lastUpdated = null;
+  res.status(200).json({ message: 'Cache invalidated' });
+};
 
 // Example function to add or update a user's rating of a recipe
 exports.rateRecipe = async (req, res) => {
@@ -585,13 +599,13 @@ exports.rateRecipe = async (req, res) => {
 
     const { userId, recipeId, rating } = req.body;
 
-    console.log('Received from Flutter:', userId, recipeId, rating);
+
 
     // Check if the user has already rated this recipe
     const user = await User.findOne({ _id: userId });
     const userHasRated = user && user.ratings.some(r => r.recipe.toString() === recipeId.toString());
 
-    console.log('User has rated:', userHasRated);
+ 
 
     if (!userHasRated) {
       // User has not rated, add new rating to the user's document
@@ -610,14 +624,14 @@ exports.rateRecipe = async (req, res) => {
     // Retrieve the recipe to update or calculate its rating
     const recipe = await Recipe.findById(recipeId);
     if (recipe) {
-      console.log(`Current recipe rating: ${recipe.rating}, count: ${recipe.ratingCount}`);
+  
 
       // Calculate new average rating
       let newTotal = recipe.rating * recipe.ratingCount + rating;
       let newCount = userHasRated ? recipe.ratingCount : recipe.ratingCount + 1;
       let newRating = newTotal / newCount;
 
-      console.log(`New total: ${newTotal}, new count: ${newCount}, new rating: ${newRating}`);
+
 
       // Update the recipe document with new rating and potentially new count
       await Recipe.findByIdAndUpdate(recipeId, {
@@ -672,17 +686,14 @@ exports.getFollowingUsersRecipes = async (req, res) => {
 
 exports.saveUserRecipes = async (req, res) => {
   try {
-    console.log('Received request to save recipe');
+
     
     // Extract userId and recipeId from request
     const userId = req.params.userId;
     const { recipeId } = req.body;
-    console.log('userId:', userId);
-    console.log('recipeId:', recipeId);
 
     // Check if a valid token is provided in the request headers
     const token = req.headers.authorization.split(' ')[1];
-    console.log('Token:', token);
     if (!token) {
       console.log('Unauthorized: No token provided');
       return res.status(401).json({ message: 'Unauthorized: No token provided' });
@@ -690,14 +701,12 @@ exports.saveUserRecipes = async (req, res) => {
 
     // Verify the token to ensure it's valid and matches the requested user's ID
     const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
-    console.log('Decoded Token:', decodedToken);
     if (!decodedToken.userId || decodedToken.userId !== userId) {
       return res.status(401).json({ message: 'Unauthorized: Invalid token' });
     }
 
     // Find the user in the database
     const user = await User.findById(userId);
-    console.log('User:', user);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }

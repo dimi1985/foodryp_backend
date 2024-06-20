@@ -5,8 +5,7 @@ const Report = require('../models/reportModel');
 exports.createReport = async (req, res) => {
     try {
       const { commentId, reason, reporterId } = req.body;
-  
-      console.log('Received report data:', { commentId, reason, reporterId });
+
   
       const report = new Report({ commentId, reason, reporterId });
       await report.save();

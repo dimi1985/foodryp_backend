@@ -16,8 +16,9 @@ const upload = multer({
     s3: s3,
     bucket: 'foodryp',
     acl: 'public-read',
-    key: function (request, file, cb) {
-      const filename = `user_${userName}.jpg`;
+    key: function (req, file, cb) {
+      const userNameWithUnderscores = userName.replace(/\s+/g, '_');
+      const filename = `user_${userNameWithUnderscores}.jpg`;
       const folder = 'profilePictures'; // Specify the folder name here
       const key = `${folder}/${filename}`; // Full path with filename
       cb(null, key); // Use the key for upload
@@ -26,11 +27,13 @@ const upload = multer({
 });
 
 
+
 exports.registerUser = async (req, res) => {
   try {
     const { 
       username, email, password, gender, profileImage, memberSince, role, recipes, mealId, recommendedRecipes,
-      followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId, savedRecipes 
+      followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled,
+       commentId, savedRecipes,themePreference,languagePreference,
     } = req.body;
     userName =username;
     const existingUserByEmail = await User.findOne({ email });
@@ -47,7 +50,8 @@ exports.registerUser = async (req, res) => {
 
     const newUser = new User({
       username, email, password: hashedPassword, gender, profileImage, memberSince: new Date(memberSince),
-      role, recipes, mealId, recommendedRecipes, followers, following, followRequestsSent, followRequestsReceived, followRequestsCanceled, commentId, savedRecipes,
+      role, recipes, mealId, recommendedRecipes, followers, following, followRequestsSent, followRequestsReceived,
+       followRequestsCanceled, commentId, savedRecipes,themePreference,languagePreference,
       tokens: []
     });
 
@@ -122,7 +126,7 @@ exports.getUserProfile = async (req, res) => {
     const token = authHeader.split(' ')[1]; // Assuming the token is sent in the format: Bearer <token>
     
     // Log the received token for debugging
-    console.log('Received token:', token);
+  
 
     // Verify the token
     const decodedToken = jwt.verify(token, 'THCR93e9pAQd'); 
@@ -186,7 +190,7 @@ exports.uploadProfilePicture = async (req, res) => {
       }
 
       const userId = req.body.userId;
-
+      
       // Verify that the provided userId matches the userId in the decoded token
       if (userId !== decodedToken.userId) {
         return res.status(403).json({ message: 'Forbidden: User ID does not match token' });
@@ -424,16 +428,16 @@ exports.changeCredentials = async (req, res) => {
 
     const { oldPassword, newUsername, newEmail, newPassword } = req.body;
 
-    console.log(`Received request to change credentials for userId: ${userId}`);
+
 
     // Fetch the user from the database
     const user = await User.findById(userId);
     if (!user) {
-      console.log(`User not found for userId: ${userId}`);
+
       return res.status(404).json({ error: 'User not found' });
     }
 
-    console.log(`Found user: ${user.username}`);
+
 
     // Compare the provided old password with the stored hashed password
     if (oldPassword) {
@@ -447,11 +451,11 @@ exports.changeCredentials = async (req, res) => {
 
     // Update user credentials based on provided fields
     if (newUsername) {
-      console.log(`Updating username to: ${newUsername}`);
+
       user.username = newUsername;
     }
     if (newEmail) {
-      console.log(`Updating email to: ${newEmail}`);
+
       user.email = newEmail;
     }
     if (newPassword) {
@@ -464,7 +468,7 @@ exports.changeCredentials = async (req, res) => {
     // Save the updated user
     await user.save();
 
-    console.log(`Credentials updated successfully for user: ${user.username}`);
+
 
     res.status(200).json({ message: 'Credentials updated successfully' });
   } catch (error) {
@@ -668,8 +672,6 @@ exports.sendFollowRequest = async (req, res) => {
     }
 
     const { userId, userToFollowId } = req.body;
-    console.log(userId)
-    console.log(userToFollowId)
     // Logic to send follow request
     const user = await User.findById(userId);
     const userToFollow = await User.findById(userToFollowId);
@@ -721,7 +723,6 @@ exports.rejectFollowRequest = async (req, res) => {
     }
 
     const { userId, userToRejectId } = req.body;
-    console.log(userId, userToRejectId);
     const user = await User.findById(userId);
     const usertoReject = await User.findById(userToRejectId);
     // Remove userToRejectId from user's following array
@@ -760,7 +761,6 @@ exports.followUserBack = async (req, res) => {
     }
 
     const { userId, userToFollowBackId } = req.body;
-    console.log(userId, userToFollowBackId);
     const user = await User.findById(userId);
     const userToFollowBack = await User.findById(userToFollowBackId);
 
@@ -937,25 +937,25 @@ exports.getPin = async (req, res) => {
 exports.validatePIN = async (req, res) => {
   try {
     const { username, pin } = req.body;
-    console.log('Received username:', username, 'Received PIN:', pin);
+
 
     if (!username || !pin) {
       console.error('Invalid request: username or pin missing');
       return res.status(400).json({ error: 'Invalid request: username or pin missing' });
     }
 
-    console.log(`Looking up user by username: ${username}`);
+
     const user = await User.findOne({ username }).exec(); // Ensure fresh data
     if (!user) {
       console.error(`User not found for username: ${username}`);
       return res.status(404).json({ error: 'User not found' });
     }
 
-    console.log(`User found: ${user.username}, Validating PIN...`);
+
     const isValid = await user.isValidPIN(pin);
 
     if (isValid) {
-      console.log('PIN validated successfully for user:', username);
+
       return res.status(200).json({ message: 'PIN validated successfully' });
     } else {
       console.error('Invalid PIN for user:', username);
@@ -982,7 +982,7 @@ exports.resetPassword = async (req, res) => {
     // Find user by username
     let user = await User.findOne({ username });
     if (!user) {
-      console.log(`User not found for username: ${username}`);
+
       return res.status(404).json({ error: 'User not found' });
     }
 
@@ -994,8 +994,6 @@ exports.resetPassword = async (req, res) => {
     // Save the updated user with the new password
     user = await user.save();
 
-    console.log(`Password reset successfully for user: ${user.username}`);
-
     // Respond with success message
     res.status(200).json({ message: 'Password reset successfully' });
   } catch (error) {
@@ -1004,10 +1002,114 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
+exports.updateThemePreference = async (req, res) => {
+  try {
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
 
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
 
+    const userId = decodedToken.userId;
+    const { themePreference } = req.body;
 
+    if (!themePreference) {
+      return res.status(400).json({ message: 'Missing theme preference' });
+    }
 
+    const user = await User.findByIdAndUpdate(userId, { themePreference }, { new: true });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({ message: 'Theme preference updated successfully', user });
+  } catch (error) {
+    console.error('Error updating theme preference:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.updateLanguagePreference = async (req, res) => {
+  try {
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    const decodedToken = jwt.verify(token, 'THCR93e9pAQd');
+    if (!decodedToken.userId) {
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+
+    const userId = decodedToken.userId;
+    const { languagePreference } = req.body;
+
+    if (!languagePreference) {
+      return res.status(400).json({ message: 'Missing language preference' });
+    }
+
+    // Validate the format of languagePreference
+    if (!/^[a-z]{2}-[A-Z]{2}$/.test(languagePreference)) {
+      return res.status(400).json({ message: 'Invalid language preference format' });
+    }
+
+    const user = await User.findByIdAndUpdate(userId, { languagePreference }, { new: true });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({ message: 'Language preference updated successfully', user });
+  } catch (error) {
+    console.error('Error updating language preference:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.getThemePreference = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'Bad Request: No userId provided' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const themePreference = user.themePreference;
+    res.status(200).json({ themePreference });
+  } catch (error) {
+    console.error('Error fetching theme preference:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.getLanguagePreference = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'Bad Request: No userId provided' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const languagePreference = user.languagePreference;
+    res.status(200).json({ languagePreference });
+  } catch (error) {
+    console.error('Error fetching language preference:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
 
 
 

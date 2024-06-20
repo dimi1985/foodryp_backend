@@ -15,7 +15,8 @@ const upload = multer({
     bucket: 'foodryp',
     acl: 'public-read',
     key: function (req, file, cb) {
-      const filename = `category_${categoryName}.jpg`;
+      const categoryNameWithUnderscores = categoryName.replace(/\s+/g, '_');
+      const filename = `category_${categoryNameWithUnderscores}.jpg`;
       const folder = 'categoryPictures'; // Folder to store in S3
       const key = `${folder}/${filename}`; // Full path with filename
       cb(null, key); // Pass the full path with the filename to the callback
@@ -24,11 +25,13 @@ const upload = multer({
 });
 
 
+
 // Method to save category with all fields and upload image (merged)
 exports.saveCategory = async (req, res) => {
   try {
     const { name, font, color, categoryImage, recipes, isForDiet, isForVegetarians, userRole } = req.body;
     categoryName = name;
+    
     // Check if the userRole is 'admin'
     if (userRole === 'admin') {
       const existingCategory = await Category.findOne({ name });
@@ -110,7 +113,7 @@ exports.updateCategory = async (req, res) => {
   try {
     const categoryId = req.params.categoryId;
     const { name, font, color } = req.body;
-
+    categoryName = name;
     // Update the category fields
     const categoryUpdateResult = await Category.updateOne({ _id: categoryId }, { $set: { name, font, color } });
 
@@ -171,9 +174,9 @@ exports.deleteCategory = async (req, res) => {
         if (defaultCategory) {
           // Set the recipe's categoryId to the ID of the default category
           recipe.categoryId = defaultCategory._id;
-          recipe.categoryColor = defaultColor.color;
-          recipe.categoryFont = defaultColor.font;
-          recipe.categoryName = defaultColor.name;
+          recipe.categoryColor = defaultCategory.color; // Correct property assignment
+          recipe.categoryFont = defaultCategory.font; // Correct property assignment
+          recipe.categoryName = defaultCategory.name; // Correct property assignment
 
           await recipe.save();
           // Push recipe ID into the default category's recipes array
@@ -192,6 +195,7 @@ exports.deleteCategory = async (req, res) => {
     res.status(500).json({ message: 'Internal server service error' });
   }
 };
+
 
 async function deleteS3Object(imageUrl) {
   const bucketName = 'foodryp'; // Adjust bucket name as necessary

@@ -7,15 +7,15 @@ const jwt = require('jsonwebtoken');
 
 // Function to save a new weekly menu
 exports.saveWeeklyMenu = async (req, res) => {
-    console.log('Request to add a weekly meal received...');
+
     try {
         const { title, dayOfWeek, userId, username, userProfileImage, dateCreated, isForDiet, isMultipleDays } = req.body;
 
-        console.log('Received from Flutter: ', title, dayOfWeek, userId, username, userProfileImage, dateCreated, isForDiet, isMultipleDays);
+       
 
         // Check if a valid token is provided in the request headers
         const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
-        console.log('Token here ? : ', token); // Log the token
+     
         if (!token) {
             console.log('Unauthorized: No token provided');
             return res.status(401).json({ message: 'Unauthorized: No token provided' });
@@ -47,7 +47,6 @@ exports.saveWeeklyMenu = async (req, res) => {
             dayOfWeek: [] // Initialize dayOfWeek as an empty array
         });
 
-        console.log('Creating new meal:', meal);
 
         // Iterate over each dayOfWeek
         for (const dayRecipeId of dayOfWeek) {
@@ -64,21 +63,21 @@ exports.saveWeeklyMenu = async (req, res) => {
             // Update the recipe with the meal ID
             recipe.meal.push(meal._id);
 
-            console.log(`Adding recipe ID ${dayRecipeId} to the meal and updating the recipe with the meal ID`);
+         
 
             // Save the updated recipe
             await recipe.save();
         }
 
-        console.log('Final meal object before saving:', meal);
+      
 
         // Save the meal to the database
         const savedMeal = await meal.save();
-        console.log('Meal saved:', savedMeal);
+     
 
         // Save the meal ID to the user's mealId field
         await User.findByIdAndUpdate(userId, { $push: { mealId: savedMeal._id } });
-        console.log(`Meal ID ${savedMeal._id} added to the user's mealId`);
+    
 
         // Respond with the saved meal data
         res.status(201).json(savedMeal);
