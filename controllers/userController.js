@@ -6,7 +6,7 @@ const multer = require('multer');
 const aws = require('aws-sdk');
 const multerS3 = require('multer-s3');
 const fs = require('fs');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const s3 = require('./utils/s3Config');
 let userName = '';
@@ -190,7 +190,7 @@ exports.uploadProfilePicture = async (req, res) => {
       }
 
       const userId = req.body.userId;
-      
+
       // Verify that the provided userId matches the userId in the decoded token
       if (userId !== decodedToken.userId) {
         return res.status(403).json({ message: 'Forbidden: User ID does not match token' });
@@ -214,11 +214,14 @@ exports.uploadProfilePicture = async (req, res) => {
         await deleteS3Object(user.profileImage);
       }
 
+      // Replace the URL to use the proxy URL
+      const imageUrl = req.file.location.replace('http://foodryp.com:9010/', 'https://storage.foodryp.com/');
+
       // Update the user document with the new profile picture URL
       try {
         await User.updateOne(
           { _id: userId },
-          { $set: { profileImage: req.file.location } } // Use the URL provided by MinIO
+          { $set: { profileImage: imageUrl } } // Use the modified URL
         );
       } catch (error) {
         console.error('Error updating user profile picture:', error);
@@ -229,7 +232,7 @@ exports.uploadProfilePicture = async (req, res) => {
       try {
         await Recipe.updateMany(
           { userId: userId },
-          { $set: { useImage: req.file.location } } // Use the URL provided by MinIO
+          { $set: { useImage: imageUrl } } // Use the modified URL
         );
       } catch (error) {
         console.error('Error updating user recipes with new profile picture URL:', error);
@@ -248,7 +251,7 @@ exports.uploadProfilePicture = async (req, res) => {
 async function deleteS3Object(imageUrl) {
   const bucketName = 'foodryp'; // Adjust bucket name as necessary
   // Correct the base URL and ensure it exactly matches how the keys are stored/retrieved.
-  const baseUrl = 'http://foodryp.com:9010/foodryp/'; // Make sure there's no double slash here
+  const baseUrl = 'http://foodryp.com:9010/'; // Make sure there's no double slash here
   const key = imageUrl.replace(baseUrl, ''); // Remove the base URL part to get the actual key
 
   const deleteParams = {

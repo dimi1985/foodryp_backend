@@ -1,4 +1,3 @@
-// Import necessary modules
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -10,19 +9,23 @@ const http = require('http');
 const WebSocket = require('ws');
 require('dotenv').config();
 
-const { registerUser, loginUser, uploadProfilePicture, getUserProfile,
+const {
+  registerUser, loginUser, uploadProfilePicture, getUserProfile,
   getAllUsers, updateUserRole, deleteUser,
-  changeCredentials, getPublicUserProfile, getUsersByPage, addFridgeItem, getFridgeItems, updateFridgeItem, deleteFridgeItem,sendFollowRequest,rejectFollowRequest,followUserBack,unfollowUser,acceptFollowRequest,savePin,getPin,validatePIN,resetPassword,updateThemePreference,updateLanguagePreference,getThemePreference,getLanguagePreference, } = require('./controllers/userController');
-const { saveCategory, getAllCategories, getFixedCategories, getCategoriesByPage, updateCategory, deleteCategory,uploadCategoryImage } = require('./controllers/categoryController');
-const { saveRecipe, uploadRecipeImage, getAllRecipes,
+  changeCredentials, getPublicUserProfile, getUsersByPage, addFridgeItem, getFridgeItems, updateFridgeItem, deleteFridgeItem, sendFollowRequest, rejectFollowRequest, followUserBack, unfollowUser, acceptFollowRequest, savePin, getPin, validatePIN, resetPassword, updateThemePreference, updateLanguagePreference, getThemePreference, getLanguagePreference,
+} = require('./controllers/userController');
+const { saveCategory, getAllCategories, getFixedCategories, getCategoriesByPage, updateCategory, deleteCategory, uploadCategoryImage } = require('./controllers/categoryController');
+const {
+  saveRecipe, uploadRecipeImage, getAllRecipes,
   recommendRecipe, unRecommendRecipe, updateRecipe, deleteRecipe,
-  getUserPublicRecipesByPage, getRecipesByCategory
-  , getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName,getTopThreeRecipes, rateRecipe,getFollowingUsersRecipes,saveUserRecipes,getUserSavedRecipes,removeUserRecipes,getUserSavedRecipesDetails,getPremiumRecipes,isRecipePremium,invalidateCache } = require('./controllers/recipeController');
-const { saveWeeklyMenu, getWeeklyMenusByPage, getWeeklyMenusByPageAndUser, getWeeklyMenusFixedLength, updateWeeklyMenu,removeFromWeeklyMenu } = require('./controllers/mealController');
-const { createComment,getComments, updateComment, deleteComment,getReportedComment, getAllComments, getCommentById } = require('./controllers/commentController');
+  getUserPublicRecipesByPage, getRecipesByCategory,
+  getFixedRecipes, getAllRecipesByPage, getUserRecipesByPage, searchRecipesByName, getTopThreeRecipes, rateRecipe, getFollowingUsersRecipes, saveUserRecipes, getUserSavedRecipes, removeUserRecipes, getUserSavedRecipesDetails, getPremiumRecipes, isRecipePremium, invalidateCache
+} = require('./controllers/recipeController');
+const { saveWeeklyMenu, getWeeklyMenusByPage, getWeeklyMenusByPageAndUser, getWeeklyMenusFixedLength, updateWeeklyMenu, removeFromWeeklyMenu } = require('./controllers/mealController');
+const { createComment, getComments, updateComment, deleteComment, getReportedComment, getAllComments, getCommentById } = require('./controllers/commentController');
 const { createWikiFood, updateWikiFood, deleteWikiFood, searchWikiFoodByTitle, getWikiFoodsByPage } = require('./controllers/wikiFoodController');
-const { createReport, deleteReport,getAllReports} = require('./controllers/reportController');
-const { saveAgreement} = require('./controllers/userAgreementController');
+const { createReport, deleteReport, getAllReports } = require('./controllers/reportController');
+const { saveAgreement } = require('./controllers/userAgreementController');
 const { getServerStatus, getDatabaseStatus, getBackupStatus } = require('./controllers/serverMonitor');
 const { monitorMiddleware, restoreDatabase } = require('./middleware/monitorMiddleware');
 
@@ -40,8 +43,11 @@ mongoose.connection.setMaxListeners(20);
 // Track if initial backup has been done
 let initialBackupDone = false;
 
+// Track last backup timestamp
+let lastBackupTimestamp = null;
+
 // Connect to MongoDB
-mongoose.connect('mongodb://38.242.241.46:27017/foodryp', {
+mongoose.connect('mongodb://localhost:27017/foodryp', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
   serverSelectionTimeoutMS: 30000, // Increase timeout to 30 seconds
@@ -71,7 +77,14 @@ db.once('open', () => {
 
 async function backupDatabases() {
   try {
-    const databases = ['foodryp']; // List of databases to backup
+    const currentTime = new Date();
+    // Check if a backup was done within the last hour
+    if (lastBackupTimestamp && (currentTime - lastBackupTimestamp) < 3600000) {
+      console.log("Backup recently done, skipping this cycle.");
+      return;
+    }
+
+    const databases = ['foodryp'];
 
     for (const dbName of databases) {
       const dbInstance = mongoose.connection.useDb(dbName);
@@ -83,12 +96,15 @@ async function backupDatabases() {
 
       for (const collection of collections) {
         const docs = await dbInstance.collection(collection.name).find({}).toArray();
-        const filePath = path.join(backupDir, `${collection.name}.json`);
-        console.log(`Writing backup file: ${filePath}`);
-        await fs.writeJson(filePath, docs);
+        if (docs.length > 0) {
+          const filePath = path.join(backupDir, `${collection.name}.json`);
+          console.log(`Writing backup file: ${filePath}`);
+          await fs.writeJson(filePath, docs);
+        }
       }
     }
     console.log("Backup completed successfully.");
+    lastBackupTimestamp = currentTime; // Update the last backup timestamp
   } catch (err) {
     console.error("Error during backup:", err);
   }
@@ -119,9 +135,11 @@ async function recreateDatabaseIfEmpty(dbName) {
       console.log(`Reading backup file: ${filePath}`);
       const data = await fs.readJson(filePath);
 
-      const dbInstance = mongoose.connection.useDb(dbName);
-      const collection = dbInstance.collection(collectionName);
-      await collection.insertMany(data);
+      if (data.length > 0) {
+        const dbInstance = mongoose.connection.useDb(dbName);
+        const collection = dbInstance.collection(collectionName);
+        await collection.insertMany(data);
+      }
     }
     console.log(`Database ${dbName} has been recreated from backup.`);
   } else {

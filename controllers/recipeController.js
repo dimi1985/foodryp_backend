@@ -59,7 +59,7 @@ exports.saveRecipe = async (req, res) => {
     const { recipeTitle, ingredients, prepDuration, cookDuration, servingNumber, difficulty, username, useImage,
       userId, dateCreated, description, recipeImage, instructions,
       categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories,isPremium,price,buyers } = req.body;
-      
+      recipeName = recipeTitle;
     const existingRecipe = await Recipe.findOne({ recipeTitle });
     if (existingRecipe) {
       return res.status(400).json({ message: 'Recipe already exists' });
@@ -70,7 +70,7 @@ exports.saveRecipe = async (req, res) => {
       username, useImage, userId, dateCreated, description, recipeImage,
       instructions, categoryId, categoryColor, categoryFont, categoryName, recomendedBy, meal, commentId, isForDiet, isForVegetarians, rating, ratingCount, cookingAdvices, calories,isPremium,price,buyers
     });
-    recipeName = newRecipe._id;
+   
     await newRecipe.save();
     
     
@@ -106,7 +106,7 @@ exports.uploadRecipeImage = async (req, res) => {
       return res.status(401).json({ message: 'Unauthorized: Invalid token' });
     }
 
-    // Handling file upload with multer-s3
+    // Handling file upload with multer
     const fileUpload = upload.single('recipeImage');
     fileUpload(req, res, async (err) => {
       if (err) {
@@ -130,13 +130,16 @@ exports.uploadRecipeImage = async (req, res) => {
         await deleteS3Object(recipe.recipeImage);
       }
 
+      // Replace the URL to use the proxy URL
+      const imageUrl = req.file.location.replace('http://foodryp.com:9010/', 'https://storage.foodryp.com/');
+
       // Update the recipe document with the new image URL
       await Recipe.updateOne(
         { _id: recipeId },
-        { $set: { recipeImage: req.file.location } } // Use the URL provided by MinIO
+        { $set: { recipeImage: imageUrl } } // Use the modified URL
       );
 
-      res.status(200).json({ message: 'Recipe Image uploaded successfully', recipeImage: req.file.location });
+      res.status(200).json({ message: 'Recipe Image uploaded successfully', recipeImage: imageUrl });
     });
   } catch (error) {
     console.error('Error handling the recipe image upload:', error);
@@ -366,7 +369,7 @@ exports.deleteRecipe = async (req, res) => {
 async function deleteS3Object(imageUrl) {
   const bucketName = 'foodryp'; // Adjust bucket name as necessary
   // Correct the base URL and ensure it exactly matches how the keys are stored/retrieved.
-  const baseUrl = 'http://foodryp.com:9010/foodryp/'; // Make sure there's no double slash here
+  const baseUrl = 'https://storage.foodryp.com/'; // Make sure there's no double slash here
   const key = imageUrl.replace(baseUrl, ''); // Remove the base URL part to get the actual key
 
   const deleteParams = {

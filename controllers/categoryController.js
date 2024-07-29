@@ -58,6 +58,7 @@ exports.saveCategory = async (req, res) => {
 
 
 // Method to upload category image
+// Method to upload category image
 exports.uploadCategoryImage = async (req, res) => {
   const fileUpload = upload.single('categoryImage');
 
@@ -98,16 +99,20 @@ exports.uploadCategoryImage = async (req, res) => {
         }
       }
 
-      console.log(`Updating category with new image URL: ${req.file.location}`);
-      await Category.updateOne({ _id: categoryId }, { $set: { categoryImage: req.file.location } });
+      // Replace the URL to use the proxy URL
+      const imageUrl = req.file.location.replace('http://foodryp.com:9010/', 'https://storage.foodryp.com/');
 
-      res.status(200).json({ message: 'Category image uploaded successfully', categoryImage: req.file.location });
+      console.log(`Updating category with new image URL: ${imageUrl}`);
+      await Category.updateOne({ _id: categoryId }, { $set: { categoryImage: imageUrl } });
+
+      res.status(200).json({ message: 'Category image uploaded successfully', categoryImage: imageUrl });
     } catch (dbError) {
       console.error('Database error during category image update:', dbError);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
 };
+
 
 exports.updateCategory = async (req, res) => {
   try {
@@ -200,7 +205,7 @@ exports.deleteCategory = async (req, res) => {
 async function deleteS3Object(imageUrl) {
   const bucketName = 'foodryp'; // Adjust bucket name as necessary
   // Correct the base URL and ensure it exactly matches how the keys are stored/retrieved.
-  const baseUrl = 'http://foodryp.com:9010/foodryp/'; // Make sure there's no double slash here
+  const baseUrl = 'http://foodryp.com:9010/'; // Make sure there's no double slash here
   const key = imageUrl.replace(baseUrl, ''); // Remove the base URL part to get the actual key
 
   const deleteParams = {
